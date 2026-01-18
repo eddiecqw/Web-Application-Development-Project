@@ -1,5 +1,5 @@
 # Web-Application-Development-Project
-This is a project about Web design based on React/vite and NoSQL document database MongoDB and coding language python, conbined the features of online registration and login system, multimedia sharing based chatroom, online location sharing map function and sharing white board function.
+This is a project about Web design based on React/vite and NoSQL document database MongoDB and coding language JavaScript, conbined the features of online registration and login system, multimedia sharing based chatroom, online location sharing map function and sharing white board function.
 
 Web content:
 UI of my login page: (blurred background and colourful Text with special css function)
