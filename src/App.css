@@ -1,0 +1,439 @@
+.mainContainer {
+  flex-direction: column;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.titleContainer {
+  display: flex;
+  flex-direction: column;
+  font-size: 62px;
+  font-weight: bolder;
+  align-items: center;
+  justify-content: center;
+
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.rainbow-text {
+  display: inline-block;
+  background-image: linear-gradient(
+    90deg,
+    #ff3366 0%,
+    #ff6b6b 20%,
+    #ff9f1c 40%,
+    #2ec4b6 60%,
+    #4bc0c0 80%,
+    #45b7d1 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: rainbow-flow 4s linear infinite;
+  background-size: 200% auto;
+}
+
+@keyframes rainbow-flow {
+  from { background-position: 0% center; }
+  to { background-position: -200% center; }
+}
+.name{
+  display: flex;
+  flex-direction: column;
+  font-size: 20px;
+  font-weight: bolder;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.resultContainer, .historyItem { 
+  flex-direction: row;
+  display: flex;
+  width: 400px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.historyContainer {
+  flex-direction: column;
+  display: flex;
+  height: 200px;
+  align-items: center;
+  flex-grow: 5;
+  justify-content: flex-start;
+}
+
+.buttonContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 260px;
+}
+.verifyButton{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  height: 20px;
+}
+.inputContainer {
+  display: flex;
+  flex-direction: column;
+  align-items:center;
+  justify-content: center;
+}
+
+.inputContainer > .errorLabel {
+  color: red;
+  font-size: 12px;
+}
+
+.inputBox {
+  height: 48px;
+  width: 400px;
+  font-size: large;
+  border-radius: 8px;
+  border: 1px solid grey;
+  padding-left: 8px;
+}
+
+#root {
+  max-width: none;
+  margin: 0 auto;
+  width : 100%;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+.media {
+  max-width: 100%;
+  height: auto;
+  margin-top: 6px;
+  border-radius: 4px;
+}
+.file-link {
+  display: inline-block;
+  margin-top: 6px;
+  color: #007bff;
+  text-decoration: underline;
+}
+
+.timestamp {
+  display: block;
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 4px;
+}
+/* 导航按钮样式 */
+.nav-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.nav-button {
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.nav-button:hover {
+  background-color: #45a049;
+}
+
+/* 地图容器样式 */
+.map-container {
+  position: relative;
+}
+
+.map-nav {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.game-container {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  height: 100vh;
+  background: #f0f2f5;
+}
+
+/* 画板区域 */
+.canvas-board {
+  border-right: 2px solid #ddd;
+  background: white;
+}
+
+/* 游戏侧边栏 */
+.game-sidebar {
+  padding: 20px;
+  background: #fff;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+}
+
+/* 游戏大厅 */
+.game-lobby {
+  max-width: 600px;
+  margin: 2rem auto;
+  text-align: center;
+}
+
+.game-entry-button {
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #6e8efb, #a777e3);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.game-entry-button:hover {
+  transform: translateY(-2px);
+}
+
+/* 游戏大厅样式 */
+.game-lobby {
+  text-align: center;
+  padding: 2rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  max-width: 600px;
+  margin: 2rem auto;
+}
+
+.lobby-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.lobby-button {
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.lobby-button:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
+}
+
+.create-btn {
+  background: #4CAF50;
+  color: white;
+}
+
+.join-section {
+  display: flex;
+  gap: 1rem;
+}
+
+.room-id-input {
+  flex: 1;
+  padding: 0.8rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.join-btn {
+  background: #2196F3;
+  color: white;
+}
+
+/* 玩家列表样式 */
+.player-list {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.player-list h3 {
+  margin: 0 0 1rem 0;
+  color: #333;
+}
+
+.player-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.player-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem;
+  margin: 0.5rem 0;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.current-user {
+  border-left: 4px solid #2196F3;
+}
+
+.player-score {
+  color: #4CAF50;
+  font-weight: bold;
+}
+
+.painter-badge {
+  margin-left: 0.5rem;
+  color: #FF9800;
+}
+
+/* 猜词输入样式 */
+.guess-section {
+  margin-top: 2rem;
+}
+
+.guess-form {
+  position: relative;
+}
+
+.guess-form input {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #4CAF50;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.guess-form button {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.guess-form button:disabled {
+  background: #81C784;
+  cursor: not-allowed;
+}
+
+.painter-word {
+  text-align: center;
+  padding: 1rem;
+  background: #FFF3E0;
+  border-radius: 8px;
+}
+
+.secret-word {
+  font-size: 1.5rem;
+  color: #FF9800;
+  font-weight: bold;
+  margin-top: 0.5rem;
+}
+
+.guess-result {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  border-radius: 6px;
+}
+
+.guess-result.correct {
+  background: #C8E6C9;
+  color: #2E7D32;
+}
+
+.guess-result.wrong {
+  background: #FFCDD2;
+  color: #C62828;
+}
+
+/* App.css */
+.chat-container {
+  position: relative;
+  min-height: 100vh;
+  overflow: visible;
+}
+
+.background-blur {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0; /* 修正层级 */
+  background-image: url('/image/background-image.jpg');
+  filter: blur(8px);
+  opacity: 0.7;
+  background-size: cover;
+  background-position: center;
+}
+
+.content-wrapper {
+  position: relative;
+  z-index: 1;
+  background-color: rgba(255, 255, 255, 0.3); /* 透明度从 0.85 调整为 0.3 */
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px;
+  backdrop-filter: blur(8px) brightness(1.1); /* 增强背景模糊效果 */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* 添加微妙阴影保持可读性 */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* 添加透明边框增强层次感 */
+}
