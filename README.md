@@ -1,7 +1,76 @@
 # Web-Application-Development-Project
-This is a project about Web design based on React/vite and NoSQL document database MongoDB and coding language JavaScript, conbined the features of online registration and login system, multimedia sharing based chatroom, online location sharing map function and sharing white board function.
+This is a project about **Web design** conbined the features of **online registration** and **login system**, **multimedia sharing** based chatroom, **online location sharing map** function and **sharing white board function**.\
+In terms of frontend, I used **React/vite** to construct the user-frendly web UI. In addtion, in backend system, I used **NoSQL** document database **MongoDB** and **node.js** to showcases a full-featured real-time application with authentication, real-time communication, game mechanics, and database integration - all built with modern JavaScript technologies.
 
-Web content:
+## 🛠 Technology Stack
+
+### Backend
+- **Node.js** - JavaScript runtime for server-side execution
+- **Express.js** - Web framework for REST API endpoints
+- **WebSocket (ws)** - Real-time bidirectional communication
+- **MongoDB** - NoSQL database for data persistence
+- **bcrypt** - Password hashing for secure authentication
+
+### Frontend (Companion Project)
+- **React** - Component-based UI library
+- **Vite** - Fast build tool and development server
+- **npm** - Package manager for dependency management
+
+### Real-time Features
+- Instant messaging with multimedia support
+- Live geolocation sharing between users
+- Multiplayer drawing game with synchronized canvas
+- Dynamic game room management with turn-based gameplay
+
+## 💡How I handle Multimedia File Transmission
+```javascript
+case 'CHAT_MESSAGE': {
+  const newMessage = {
+    sender: username,
+    content: data.content,          // File content (likely base64 encoded)
+    timestamp: new Date(),
+    type: data.type || 'text',      // Could be 'image', 'audio', 'video'
+    mimeType: data.mimeType || null, // e.g., 'image/jpeg', 'audio/mp3'
+    filename: data.filename || null,  // Original filename
+  };
+  
+  await db.collection('ChatMessages').insertOne(newMessage);
+  
+  // Broadcast to all connected clients
+  Object.values(connections).forEach((conn) => {
+    conn.send(JSON.stringify([newMessage]));
+  });
+}
+```
+### Key Points:
+ - Metadata Storage: The backend stores file metadata (type, mimeType, filename) in MongoDB
+ - Base64 Encoding: The actual file content is expected to be base64-encoded in data.content
+ - Broadcast Strategy: Files are broadcast immediately to all connected clients in real-time
+ - Persistence: All messages (including files) are stored in MongoDB for history
+
+## 👥🫂Real-Time Chat System
+### A. WebSocket for Real-Time Messaging:
+ - Each client maintains a persistent WebSocket connection
+ - Messages are instantly broadcast to all connected clients
+ - No polling needed - immediate delivery
+### B. Database for Message Persistence:
+```javascript
+// On connection, send last 8 messages from history
+const messages = await db
+  .collection('ChatMessages')
+  .find()
+  .sort({ timestamp: -1 })
+  .limit(8)
+  .toArray();
+
+connection.send(JSON.stringify(messages.reverse()));
+```
+### C. Message Flow:
+ - Client sends CHAT_MESSAGE via WebSocket
+ - Server saves to MongoDB
+ - Server broadcasts to all connected clients
+ - New clients receive recent history on connect
+## Web pages walkthrough:
 UI of my login page: (blurred background and colourful Text with special css function)
 <img width="941" height="504" alt="image" src="https://github.com/user-attachments/assets/b8f3ca28-7998-4182-a772-b79ba108eac6" />
 
