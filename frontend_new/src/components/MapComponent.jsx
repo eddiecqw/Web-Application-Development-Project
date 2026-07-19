@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// 修復 Leaflet Marker 圖標
 const DefaultIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
@@ -14,20 +13,20 @@ const DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// ✅ 自訂地理位置追蹤組件
-function LocationTracker({ onPositionUpdate }) {
+// 🛠️ Bug 修復：增加 onError 屬性，將錯誤傳回給用戶介面
+function LocationTracker({ onPositionUpdate, onError }) {
   const map = useMap();
   const watchIdRef = useRef(null);
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      console.error('Geolocation not supported');
+      onError('Geolocation is not supported by your browser');
       return;
     }
 
     const options = {
       enableHighAccuracy: true,
-      timeout: 5000,
+      timeout: 10000, // 增加超時時間，手機 GPS 定位較慢
       maximumAge: 0,
     };
 
@@ -39,6 +38,7 @@ function LocationTracker({ onPositionUpdate }) {
 
     const error = (err) => {
       console.warn(`ERROR(${err.code}): ${err.message}`);
+      onError(err.message === "User denied Geolocation" ? "Please allow location access in your browser settings." : err.message);
     };
 
     watchIdRef.current = navigator.geolocation.watchPosition(success, error, options);
@@ -46,23 +46,19 @@ function LocationTracker({ onPositionUpdate }) {
     return () => {
       navigator.geolocation.clearWatch(watchIdRef.current);
     };
-  }, [map, onPositionUpdate]);
+  }, [map, onPositionUpdate, onError]);
 
   return null;
 }
 
-// ✅ 主組件
 const MapComponent = () => {
   const [position, setPosition] = useState([22.3193, 114.1694]);
   const [accuracy, setAccuracy] = useState(null);
   const [error, setError] = useState(null);
   const [otherUsers, setOtherUsers] = useState({});
-
   const socketRef = useRef(null);
 
   useEffect(() => {
-    //const username = localStorage.getItem('user');
-    //const socket = new WebSocket(`ws://localhost:53840?username=${username}`);
     const storedUser = localStorage.getItem('user');
     const username = storedUser ? JSON.parse(storedUser).email : 'unknown';
 
@@ -73,15 +69,9 @@ const MapComponent = () => {
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
 
-    socket.onopen = () => {
-      console.log('✅ WebSocket connected');
-    };
-
     socket.onmessage = (event) => {
       const msg = JSON.parse(event.data);
-
       if (Array.isArray(msg)) return; 
-
       const { type, data } = msg;
 
       if (type === 'USER_POSITION') {
@@ -99,14 +89,11 @@ const MapComponent = () => {
       }
     };
 
-    socket.onclose = () => {
-      console.log('❌ WebSocket disconnected');
-    };
-
     return () => socket.close();
   }, []);
 
   const handlePositionUpdate = (newPos, acc) => {
+    setError(null); // 成功獲取位置則清除錯誤
     setPosition(newPos);
     setAccuracy(acc);
 
@@ -114,29 +101,31 @@ const MapComponent = () => {
       socketRef.current.send(
         JSON.stringify({
           type: 'USER_POSITION_UPDATE',
-          data: {
-            latitude: newPos[0],
-            longitude: newPos[1],
-          },
+          data: { latitude: newPos[0], longitude: newPos[1] },
         })
       );
     }
   };
 
   return (
-    <div className="map-container">
-      <div className="map-controls">
-        <Link to="/" className="control-button">
+    <div className="map-container" style={{ position: 'relative', height: '100vh', width: '100vw' }}>
+      {/* 📱 手機端自適應：使用絕對定位與半透明背景，確保不會干擾地圖拖曳 */}
+      <div style={{
+        position: 'absolute', top: '10px', left: '10px', zIndex: 1000,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)', padding: '10px',
+        borderRadius: '8px', boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+        maxWidth: 'calc(100% - 20px)'
+      }}>
+        <Link to="/" style={{ textDecoration: 'none', color: '#007bff', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>
           ← Back to Chat
         </Link>
-        <div className="position-info">
+        <div style={{ fontSize: '14px' }}>
           {error ? (
-            <div className="error-message">⚠️ {error}</div>
+            <div style={{ color: 'red', fontWeight: 'bold' }}>⚠️ {error}</div>
           ) : (
             <>
-              <div>Latitude: {position[0].toFixed(6)}</div>
-              <div>Longitude: {position[1].toFixed(6)}</div>
-              {accuracy && <div>Accuracy: {Math.round(accuracy)} meters</div>}
+              <div>Lat: {position[0].toFixed(5)} | Lng: {position[1].toFixed(5)}</div>
+              {accuracy && <div style={{ color: 'gray', fontSize: '12px' }}>Accuracy: {Math.round(accuracy)}m</div>}
             </>
           )}
         </div>
@@ -145,33 +134,19 @@ const MapComponent = () => {
       <MapContainer
         center={position}
         zoom={16}
-        style={{ height: 'calc(100vh - 60px)', width: '100%' }}
+        style={{ height: '100%', width: '100%', zIndex: 1 }}
         zoomControl={false}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-
-        {/* 自己的位置 */}
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <Marker position={position} icon={DefaultIcon}>
-          <Popup>
-            Your Position <br />
-            {position[0].toFixed(6)}, {position[1].toFixed(6)}
-          </Popup>
+          <Popup>Your Position</Popup>
         </Marker>
-
-        {/* 其他用戶 */}
         {Object.entries(otherUsers).map(([username, coords]) => (
           <Marker key={username} position={coords} icon={DefaultIcon}>
-            <Popup>
-              {username}'s Location <br />
-              {coords[0].toFixed(6)}, {coords[1].toFixed(6)}
-            </Popup>
+            <Popup>{username}'s Location</Popup>
           </Marker>
         ))}
-
-        <LocationTracker onPositionUpdate={handlePositionUpdate} />
+        <LocationTracker onPositionUpdate={handlePositionUpdate} onError={setError} />
       </MapContainer>
     </div>
   );

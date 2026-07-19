@@ -115,6 +115,7 @@ export function Login({ onLogin  }) {
           <div>Welcome to "<span className="rainbow-text">Happy Chat</span>"</div>
         </div>
         <div className='name'>
+          <div>A peaceful place where you can enjoy chatting and having fun without any worries.</div>
           <div>Designer：CHEN QUANWEI (Eddie)</div>
         </div>
         <form onSubmit={handleSubmit} className="inputContainer">
