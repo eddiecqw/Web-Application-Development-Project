@@ -98,8 +98,7 @@ export default function useGameSocket(url, eventHandlers = {}) {
     }
   }, []);
 
-  const createRoom = useCallback(() => send('GAME_CREATE_ROOM'), [send]);
-  const joinRoom = useCallback((roomId) => send('GAME_JOIN_ROOM', { roomId }), [send]);
+  const createRoom = useCallback((settings) => send('GAME_CREATE_ROOM', settings), [send]);  const joinRoom = useCallback((roomId) => send('GAME_JOIN_ROOM', { roomId }), [send]);
   const sendDrawData = useCallback((path) => send('GAME_DRAW_DATA', { path }), [send]);
   const submitGuess = useCallback((guess) => send('GAME_SUBMIT_GUESS', { guess }), [send]);
 

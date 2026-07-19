@@ -119,6 +119,24 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// ✅ REST API: 獲取所有公開房間列表 (Room Discovery)
+app.get('/api/rooms', (req, res) => {
+  try {
+    const rooms = Object.keys(gameRooms).map(roomId => {
+      return {
+        roomId,
+        playerCount: gameRooms[roomId].players.length,
+        hasTimeLimit: gameRooms[roomId].hasTimeLimit || false,
+        timeLimit: gameRooms[roomId].timeLimit || 60
+      };
+    });
+    res.json({ success: true, rooms });
+  } catch (error) {
+    console.error('❌ Error fetching rooms:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 // ✅ WebSocket Handler
 wsServer.on('connection', async (connection, request) => {
   const { username } = url.parse(request.url, true).query;
@@ -223,17 +241,20 @@ wsServer.on('connection', async (connection, request) => {
         const roomId = uuidv4().slice(0, 6);
         const playerId = uuidv4();
         const word = GAME_WORDS[Math.floor(Math.random() * GAME_WORDS.length)];
-        const player = {
-          id: playerId,
-          name: username,
-          score: 0,
-          isPainter: true,
-        };
-        console.log('🎯 roomId:', roomId);
+        const player = { id: playerId, name: username, score: 0, isPainter: true };
+        
+        // 👇 新增：接收前端傳來的時間設定
+        const hasTimeLimit = data.hasTimeLimit || false;
+        const timeLimit = data.timeLimit || 60;
+
+        console.log(`🎯 roomId: ${roomId}, TimeLimit: ${hasTimeLimit ? timeLimit + 's' : 'None'}`);
+        
         gameRooms[roomId] = {
           players: [player],
           painterId: playerId,
           word,
+          hasTimeLimit, // 存入房間狀態
+          timeLimit     // 存入房間狀態
         };
       
         connection._roomId = roomId;
@@ -267,6 +288,8 @@ wsServer.on('connection', async (connection, request) => {
               isPainter: true,
               playerId,
               word,
+              hasTimeLimit, // 👇 回傳設定
+              timeLimit
             },
           })
         );
@@ -305,6 +328,8 @@ wsServer.on('connection', async (connection, request) => {
               players: room.players,
               isPainter: false,
               playerId,
+              hasTimeLimit: room.hasTimeLimit,
+              timeLimit: room.timeLimit
             },
           })
         );
@@ -371,6 +396,8 @@ wsServer.on('connection', async (connection, request) => {
               players: room.players,
               word: newWord,
               painterId: room.painterId,
+              hasTimeLimit: room.hasTimeLimit,
+              timeLimit: room.timeLimit
             }
           });
         }

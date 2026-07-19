@@ -543,3 +543,35 @@
     flex-direction: column;
   }
 }
+
+/* =========================================================
+   你畫我猜遊戲介面：強制亮色模式與字體顏色修正
+========================================================= */
+.game-lobby {
+  color: #333333 !important;
+}
+
+.game-lobby h2 {
+  color: #333333 !important;
+}
+
+.room-id-input {
+  background-color: #ffffff !important;
+  color: #333333 !important;
+  border: 2px solid #ccc !important;
+}
+
+/* 確保輸入框的 placeholder（提示字元）也是清楚的灰色 */
+.room-id-input::placeholder {
+  color: #888888 !important;
+}
+
+/* 遊戲內部的字體顏色修正 */
+.player-list, .guess-section, .painter-word {
+  color: #333333 !important;
+}
+
+.guess-form input {
+  background-color: #ffffff !important;
+  color: #333333 !important;
+}

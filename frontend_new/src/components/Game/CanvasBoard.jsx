@@ -1,16 +1,18 @@
 import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { fabric } from 'fabric';
 
-const CanvasBoard = forwardRef(({ isPainter, sendDraw }, ref) => {
+const CanvasBoard = forwardRef(({ isPainter, sendDraw, brushColor, brushSize }, ref) => {
+  const wrapperRef = useRef(null);
   const canvasRef = useRef(null);
   const fabricCanvas = useRef(null);
   const isInitialized = useRef(false);
 
-  // 用 ref 追蹤狀態和函數，避免觸發 useEffect
   const isPainterRef = useRef(isPainter);
   const sendDrawRef = useRef(sendDraw);
+  
+  // 📝 新增：用來儲存被撤銷的筆畫，以便「重做」
+  const redoStack = useRef([]);
 
-  // 1. 同步最新狀態，不銷毀畫布
   useEffect(() => {
     isPainterRef.current = isPainter;
     if (fabricCanvas.current) {
@@ -18,12 +20,17 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw }, ref) => {
     }
   }, [isPainter]);
 
-  // 2. 同步最新的發送函數
   useEffect(() => {
     sendDrawRef.current = sendDraw;
   }, [sendDraw]);
 
-  // 3. 畫布初始化 (依賴設為空陣列 []，保證只執行一次！)
+  useEffect(() => {
+    if (fabricCanvas.current && fabricCanvas.current.freeDrawingBrush) {
+      fabricCanvas.current.freeDrawingBrush.color = brushColor;
+      fabricCanvas.current.freeDrawingBrush.width = parseInt(brushSize, 10);
+    }
+  }, [brushColor, brushSize]);
+
   useEffect(() => {
     if (!canvasRef.current || isInitialized.current) return;
 
@@ -34,25 +41,39 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw }, ref) => {
       backgroundColor: '#ffffff',
     });
 
+    canvas.freeDrawingBrush.color = brushColor || '#000000';
+    canvas.freeDrawingBrush.width = parseInt(brushSize || 5, 10);
+
     fabricCanvas.current = canvas;
     isInitialized.current = true;
 
-    // 繪圖事件監聽
     const handlePathCreated = (e) => {
       if (!isPainterRef.current) return;
+      
+      // 只要畫了新的一筆，重做的歷史紀錄就必須清空
+      redoStack.current = [];
+      
       const path = e.path.toObject();
-      sendDrawRef.current(path); // 永遠使用最新的發送函數
+      sendDrawRef.current(path);
     };
 
     canvas.on('path:created', handlePathCreated);
 
     const handleResize = () => {
-      if (fabricCanvas.current) {
+      if (fabricCanvas.current && wrapperRef.current) {
+        const wrapperWidth = wrapperRef.current.clientWidth;
+        const scale = Math.min(wrapperWidth / 800, 1);
+        fabricCanvas.current.setDimensions({
+          width: 800 * scale,
+          height: 600 * scale
+        });
+        fabricCanvas.current.setZoom(scale);
         fabricCanvas.current.calcOffset();
       }
     };
+
     window.addEventListener('resize', handleResize);
-    setTimeout(handleResize, 100);
+    setTimeout(handleResize, 50);
 
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -61,9 +82,9 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw }, ref) => {
       fabricCanvas.current = null;
       isInitialized.current = false;
     };
-  }, []); // 👈 關鍵修復：這裡變成空陣列，保證畫布不會在遊戲中途消失！
+  }, []); 
 
-  // 暴露外部操作方法
+  // 暴露更多方法給 DrawGuessPage 控制
   useImperativeHandle(ref, () => ({
     drawPath: (pathData) => {
       if (!fabricCanvas.current) return;
@@ -76,16 +97,53 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw }, ref) => {
         fabricCanvas.current.renderAll();
       });
     },
-    clear: () => {
+    // ⏪ 撤銷 (向後)
+    undo: (broadcast = true) => {
+      if (!fabricCanvas.current) return;
+      const objects = fabricCanvas.current.getObjects();
+      if (objects.length > 0) {
+        const lastObj = objects[objects.length - 1];
+        if (broadcast) {
+          redoStack.current.push(lastObj.toObject());
+          sendDrawRef.current({ action: 'UNDO' }); // 透過網路通知其他人撤銷
+        }
+        fabricCanvas.current.remove(lastObj);
+        fabricCanvas.current.renderAll();
+      }
+    },
+    // ⏩ 重做 (向前)
+    redo: () => {
+      if (!fabricCanvas.current || redoStack.current.length === 0) return;
+      const pathData = redoStack.current.pop();
+      // 在本地畫出來
+      fabric.util.enlivenObjects([pathData], (objects) => {
+        objects.forEach(obj => {
+          obj.selectable = false;
+          obj.evented = false;
+          fabricCanvas.current.add(obj);
+        });
+        fabricCanvas.current.renderAll();
+      });
+      // 把重做的筆跡當作新的筆跡發送給其他人
+      sendDrawRef.current(pathData);
+    },
+    // 🗑️ 清空畫板
+    clear: (broadcast = true) => {
       if (fabricCanvas.current) {
         fabricCanvas.current.clear();
+        fabricCanvas.current.backgroundColor = '#ffffff';
+        fabricCanvas.current.renderAll();
+        if (broadcast) {
+          redoStack.current = [];
+          sendDrawRef.current({ action: 'CLEAR' }); // 透過網路通知其他人清空
+        }
       }
     }
   }));
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', width: '100%', overflow: 'hidden', marginBottom: '1rem' }}>
-      <canvas ref={canvasRef} style={{ border: '2px solid #ddd', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+    <div ref={wrapperRef} style={{ display: 'flex', justifyContent: 'center', width: '100%', overflow: 'hidden', marginBottom: '1rem' }}>
+      <canvas ref={canvasRef} style={{ border: '2px solid #ddd', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', backgroundColor: 'white', touchAction: 'none' }} />
     </div>
   );
 });
