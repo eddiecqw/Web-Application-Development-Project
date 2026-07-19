@@ -10,10 +10,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-
-const uri =
-  'mongodb+srv://1155192043:MHJ+cqw02260803@eddiewebdemos.hl10e.mongodb.net/?retryWrites=true&w=majority&appName=Eddiewebdemos';
-
+const uri = process.env.MONGODB_URI;
+const PORT = process.env.PORT || 53840;
 const client = new MongoClient(uri, {
   serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
 });
@@ -23,7 +21,7 @@ const app = express();
 app.use(
   cors({
     //origin: 'http://localhost:5173',
-    orgin:'*',
+    origin:'*',
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type'],
     //credentials: true,
@@ -50,7 +48,6 @@ client
 // ✅ Create HTTP + WebSocket Server
 const server = http.createServer(app);
 const wsServer = new WebSocketServer({ server });
-const PORT = 53840;
 const connections = {};
 const gameRooms = {}; // { roomId: { players: [], painterId: string } }
 
