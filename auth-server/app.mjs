@@ -50,7 +50,18 @@ const server = http.createServer(app);
 const wsServer = new WebSocketServer({ server });
 const connections = {};
 const gameRooms = {}; // { roomId: { players: [], painterId: string } }
-
+const GAME_WORDS = [
+  // 動物類
+  '貓咪', '狗', '兔子', '獅子', '企鵝', '烏龜', '蝴蝶', '長頸鹿', '大象', '貓頭鷹', '鯊魚', '青蛙', '蛇', '蝸牛',
+  // 食物類
+  '蘋果', '漢堡', '披薩', '壽司', '蛋糕', '西瓜', '香蕉', '甜甜圈', '熱狗', '薯條', '珍珠奶茶', '冰淇淋', '三明治',
+  // 日常用品
+  '手機', '電腦', '手錶', '剪刀', '吹風機', '牙刷', '椅子', '鍵盤', '麥克風', '燈泡', '電視', '沙發', '雨傘', '馬桶',
+  // 交通工具
+  '火車', '飛機', '腳踏車', '船', '汽車', '直升機', '火箭', '公車',
+  // 自然與其他
+  '太陽', '月亮', '星星', '雲', '閃電', '樹', '花', '彩虹', '火山', '雪人', '鑽石', '鬼魂', '外星人'
+];
 // ✅ REST API: Register
 app.post('/api/auth/register', async (req, res) => {
   const { email, password } = req.body;
@@ -211,8 +222,7 @@ wsServer.on('connection', async (connection, request) => {
       case 'GAME_CREATE_ROOM': {
         const roomId = uuidv4().slice(0, 6);
         const playerId = uuidv4();
-        const keywords = ['太陽', '蘋果', '貓咪', '火車', '手機'];
-        const word = keywords[Math.floor(Math.random() * keywords.length)];
+        const word = GAME_WORDS[Math.floor(Math.random() * GAME_WORDS.length)];
         const player = {
           id: playerId,
           name: username,
@@ -351,8 +361,7 @@ wsServer.on('connection', async (connection, request) => {
           room.players.forEach(p => p.isPainter = (p.id === room.painterId));
       
           // ✅ 新題目
-          const keywords = ['太陽', '蘋果', '貓咪', '火車', '手機', '電腦', '冰淇淋'];
-          const newWord = keywords[Math.floor(Math.random() * keywords.length)];
+          const newWord = GAME_WORDS[Math.floor(Math.random() * GAME_WORDS.length)];
           room.word = newWord;
       
           // ✅ 廣播新一輪開始

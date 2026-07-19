@@ -115,8 +115,7 @@ export function Login({ onLogin  }) {
           <div>Welcome to "<span className="rainbow-text">Happy Chat</span>"</div>
         </div>
         <div className='name'>
-          <div>which designed by ierg3840 student CHEN Quanwei</div>
-          <div>UID:1155192043</div>
+          <div>Designer：CHEN QUANWEI (Eddie)</div>
         </div>
         <form onSubmit={handleSubmit} className="inputContainer">
           <input
