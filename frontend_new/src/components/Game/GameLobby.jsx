@@ -11,7 +11,8 @@ export default function GameLobby({ onCreateRoom, onJoinRoom }) {
   // 📡 抓取房間資料的函數
   const fetchRooms = async () => {
     try {
-      const response = await fetch('/api/rooms');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:53840';
+      const response = await fetch(`${apiUrl}/api/rooms`);
       const data = await response.json();
       if (data.success) {
         setAvailableRooms(data.rooms);
