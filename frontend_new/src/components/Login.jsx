@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:53840';
 export function Login({ onLogin  }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,7 +37,8 @@ export function Login({ onLogin  }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({email:email, password:password}),
       });*/
-      const response = await fetch('/api/auth/login', {
+      // 1. 修改 handleLogin 內的 fetch：
+      const response = await fetch(`${apiUrl}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({email:email, password:password}),
@@ -85,7 +86,7 @@ export function Login({ onLogin  }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });*/
-      const checkResponse = await fetch('/api/auth/check-account', {
+      const checkResponse = await fetch(`${apiUrl}/api/auth/check-account`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
