@@ -3,9 +3,10 @@ import useWebSocket from 'react-use-websocket';
 import { Link } from "react-router-dom";
 import { useNavigate } from 'react-router-dom';
 
-export function Home({ username ,onLogout}) {
+/*export function Home({ username ,onLogout}) {
   const WS_URL = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + 
-               '//' + window.location.host + '/ws';
+               '//' + window.location.host + '/ws';*/
+  const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:53840/ws';
   const navigate = useNavigate();
   const { sendJsonMessage, lastJsonMessage } = useWebSocket(WS_URL, {
     share: true,
