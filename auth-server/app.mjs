@@ -16,15 +16,12 @@ const client = new MongoClient(uri, {
   serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
 });
 
-
 const app = express();
 app.use(
   cors({
-    //origin: 'http://localhost:5173',
     origin: ['http://localhost:5173','https://web-application-development-project-rfmutz8st.vercel.app',/^https:\/\/web-application-development-project.*\.vercel\.app$/],
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type'],
-    //credentials: true,
   })
 );
 app.use(express.json());
@@ -51,17 +48,13 @@ const wsServer = new WebSocketServer({ server });
 const connections = {};
 const gameRooms = {}; // { roomId: { players: [], painterId: string } }
 const GAME_WORDS = [
-  // 動物類
   '貓咪', '狗', '兔子', '獅子', '企鵝', '烏龜', '蝴蝶', '長頸鹿', '大象', '貓頭鷹', '鯊魚', '青蛙', '蛇', '蝸牛',
-  // 食物類
   '蘋果', '漢堡', '披薩', '壽司', '蛋糕', '西瓜', '香蕉', '甜甜圈', '熱狗', '薯條', '珍珠奶茶', '冰淇淋', '三明治',
-  // 日常用品
   '手機', '電腦', '手錶', '剪刀', '吹風機', '牙刷', '椅子', '鍵盤', '麥克風', '燈泡', '電視', '沙發', '雨傘', '馬桶',
-  // 交通工具
   '火車', '飛機', '腳踏車', '船', '汽車', '直升機', '火箭', '公車',
-  // 自然與其他
   '太陽', '月亮', '星星', '雲', '閃電', '樹', '花', '彩虹', '火山', '雪人', '鑽石', '鬼魂', '外星人'
 ];
+
 // ✅ REST API: Register
 app.post('/api/auth/register', async (req, res) => {
   const { email, password } = req.body;
@@ -137,9 +130,26 @@ app.get('/api/rooms', (req, res) => {
   }
 });
 
+// ✨ 新增：計算並廣播全站人數狀態的核心函數
+function broadcastSystemStatus() {
+  const totalOnline = Object.keys(connections).length;
+  // 計算帶有 _location 屬性的連線數量（代表正在使用地圖）
+  const mapUsers = Object.values(connections).filter(conn => conn._location).length;
+  
+  const statusMsg = JSON.stringify([{
+    type: 'SYSTEM_STATUS',
+    data: { online: totalOnline, map: mapUsers }
+  }]);
+  
+  Object.values(connections).forEach((conn) => {
+    if (conn.readyState === 1) conn.send(statusMsg);
+  });
+}
+
 // ✅ WebSocket Handler
 wsServer.on('connection', async (connection, request) => {
   const { username } = url.parse(request.url, true).query;
+  
   // ⚠️ 關鍵修復：尋找是否已經有同一個 username 的連線
   const existingUuid = Object.keys(connections).find(
     (key) => connections[key]._username === username
@@ -177,6 +187,9 @@ wsServer.on('connection', async (connection, request) => {
   } catch (error) {
     console.error('❌ Error fetching messages:', error);
   }
+
+  // ✨ 新連線加入後，廣播最新人數
+  broadcastSystemStatus();
 
   // ✅ Handle incoming messages
   connection.on('message', async (message) => {
@@ -218,6 +231,9 @@ wsServer.on('connection', async (connection, request) => {
         const { latitude, longitude } = data;
         connection._location = { latitude, longitude, username };
       
+        // ✨ 當有人更新地圖座標時，廣播人數狀態 (更新 Map 人數)
+        broadcastSystemStatus();
+
         // 1. 廣播給其他人
         Object.values(connections).forEach((conn) => {
           if (conn !== connection && conn.readyState === 1) {
@@ -271,8 +287,8 @@ wsServer.on('connection', async (connection, request) => {
           players: [player],
           painterId: playerId,
           word,
-          hasTimeLimit, // 存入房間狀態
-          timeLimit     // 存入房間狀態
+          hasTimeLimit, 
+          timeLimit     
         };
       
         connection._roomId = roomId;
@@ -306,7 +322,7 @@ wsServer.on('connection', async (connection, request) => {
               isPainter: true,
               playerId,
               word,
-              hasTimeLimit, // 👇 回傳設定
+              hasTimeLimit, 
               timeLimit
             },
           })
@@ -370,7 +386,6 @@ wsServer.on('connection', async (connection, request) => {
         break;
       }
 
-      // app.mjs 修改 GAME_SUBMIT_GUESS 处理
       case 'GAME_SUBMIT_GUESS': {
         const roomId = connection._roomId;
         if (!roomId) return;
@@ -397,22 +412,16 @@ wsServer.on('connection', async (connection, request) => {
           const nextPainterIndex = (currentPainterIndex + 1) % room.players.length;
           const nextPainter = room.players[nextPainterIndex];
           console.log("next painter is",nextPainter);
-          // ✅ 更新畫家 ID
+          
           room.painterId = nextPainter.id;
-      
-          // ✅ 重置玩家 isPainter 狀態
           room.players.forEach(p => p.isPainter = (p.id === room.painterId));
+          room.word = GAME_WORDS[Math.floor(Math.random() * GAME_WORDS.length)];
       
-          // ✅ 新題目
-          const newWord = GAME_WORDS[Math.floor(Math.random() * GAME_WORDS.length)];
-          room.word = newWord;
-      
-          // ✅ 廣播新一輪開始
           broadcastToRoom(roomId, {
             type: 'GAME_NEW_ROUND',
             data: {
               players: room.players,
-              word: newWord,
+              word: room.word,
               painterId: room.painterId,
               hasTimeLimit: room.hasTimeLimit,
               timeLimit: room.timeLimit
@@ -420,7 +429,6 @@ wsServer.on('connection', async (connection, request) => {
           });
         }
       
-        // ✅ 廣播猜測結果
         broadcastToRoom(roomId, {
           type: 'GAME_GUESS_RESULT',
           data: {
@@ -484,7 +492,10 @@ wsServer.on('connection', async (connection, request) => {
       }
     }
     
-    delete connections[uuid]; // 記得要有這個 uuid 是全域變數
+    delete connections[uuid]; 
+    
+    // ✨ 有人離開後，再次廣播最新人數
+    broadcastSystemStatus();
   });
 });
 

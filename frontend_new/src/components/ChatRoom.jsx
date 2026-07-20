@@ -13,7 +13,16 @@ export function Home({ username ,onLogout}) {
 
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
+  
+  // ✨ 新增：追蹤在線人數與地圖人數的狀態
+  const [onlineCount, setOnlineCount] = useState(1);
+  const [mapCount, setMapCount] = useState(0);
+
   const fileInputRef = useRef(null);
+  
+  // ✨ 新增：用於自動滾動到最新訊息的隱形錨點
+  const messagesEndRef = useRef(null);
+
   const { getWebSocket } = useWebSocket(WS_URL, {
     share: true,
     queryParams: { username },
@@ -35,6 +44,13 @@ export function Home({ username ,onLogout}) {
     if (!lastJsonMessage) return;
     if (!Array.isArray(lastJsonMessage)) return;
   
+    // ✨ 新增：攔截並解析系統廣播的人數狀態
+    const statusMsg = lastJsonMessage.find(msg => msg?.type === 'SYSTEM_STATUS');
+    if (statusMsg) {
+      setOnlineCount(statusMsg.data.online);
+      setMapCount(statusMsg.data.map);
+    }
+
     const validMessages = lastJsonMessage.filter(
       (msg) => 
         msg?.type === 'text' || 
@@ -46,6 +62,11 @@ export function Home({ username ,onLogout}) {
       setMessages((prev) => [...prev, ...validMessages]);
     }
   }, [lastJsonMessage]);
+
+  // ✨ 新增：當 messages 改變時，自動平滑滾動到底部
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const sendMessage = () => {
     if (!message.trim()) return;
@@ -59,7 +80,6 @@ export function Home({ username ,onLogout}) {
     setMessage('');
   };
 
-  // 🛠️ Bug 修復：加入檔案大小限制 (5MB)
   const sendFile = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -67,7 +87,7 @@ export function Home({ username ,onLogout}) {
     const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
     if (file.size > MAX_FILE_SIZE) {
       alert('File is too large! Please upload a file smaller than 5MB.');
-      event.target.value = ''; // 清空選擇
+      event.target.value = ''; 
       return;
     }
   
@@ -87,33 +107,19 @@ export function Home({ username ,onLogout}) {
   };
 
   const renderContent = (msg) => {
-    const { type, content, mimeType, filename, sender } = msg;
+    const { type, content, mimeType, filename } = msg;
 
-    if (type === 'text') {
-      return <span>{content}</span>;
-    }
+    if (type === 'text') return <span>{content}</span>;
 
     if (type === 'file') {
       if (mimeType?.startsWith('image/')) {
         return <img src={content} alt={filename} className="media" style={{ maxWidth: '100%', height: 'auto' }} />;
       } else if (mimeType?.startsWith('video/')) {
-        return (
-          <video controls className="media" style={{ maxWidth: '100%' }}>
-            <source src={content} type={mimeType} />
-          </video>
-        );
+        return <video controls className="media" style={{ maxWidth: '100%' }}><source src={content} type={mimeType} /></video>;
       } else if (mimeType?.startsWith('audio/')) {
-        return (
-          <audio controls className="media" style={{ maxWidth: '100%' }}>
-            <source src={content} type={mimeType} />
-          </audio>
-        );
+        return <audio controls className="media" style={{ maxWidth: '100%' }}><source src={content} type={mimeType} /></audio>;
       } else {
-        return (
-          <a href={content} download={filename} className="file-link">
-            📄 Download {filename}
-          </a>
-        );
+        return <a href={content} download={filename} className="file-link">📄 Download {filename}</a>;
       }
     }
     if (type === 'system') {
@@ -131,10 +137,26 @@ export function Home({ username ,onLogout}) {
     <div className="chat-container">
       <div className="background-blur" />
       <div className="content-wrapper">
-        <h1 className='rainbow-text'>Chat Room</h1>
-        <div className='name'>Some extra functions:</div>
         
-        {/* 📱 手機端自適應：加入 flex-wrap 讓按鈕在小螢幕自動換行 */}
+        {/* ✨ 修改：將標題區塊改為 Flexbox，並在右上角加入人數統計面板 */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <h1 className='rainbow-text' style={{ margin: 0 }}>Chat Room</h1>
+          <div style={{ 
+            display: 'flex', gap: '15px', background: 'rgba(255,255,255,0.75)', 
+            padding: '8px 16px', borderRadius: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
+            fontWeight: 'bold', fontSize: '0.9rem'
+          }}>
+            <span style={{ color: '#4caf50', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              🟢 在線人數: {onlineCount}
+            </span>
+            <span style={{ color: '#2196f3', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              🌎 地圖探索中: {mapCount}
+            </span>
+          </div>
+        </div>
+        
+        <div className='name' style={{ marginTop: '5px' }}>Some extra functions:</div>
+        
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', margin: '15px 0' }}>
           <Link to="/cursor"><button className="nav-button">Go to Cursor Page</button></Link>
           <Link to="/map"><button className="nav-button">View Map</button></Link>
@@ -151,6 +173,8 @@ export function Home({ username ,onLogout}) {
               </span>
             </div>
           ))}
+          {/* ✨ 新增：自動滾動的隱形目標錨點 */}
+          <div ref={messagesEndRef} />
         </div>
   
         <div className="chat-input">
@@ -159,7 +183,7 @@ export function Home({ username ,onLogout}) {
             value={message}
             placeholder="Type a message..."
             onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()} // 支援 Enter 發送
+            onKeyPress={(e) => e.key === 'Enter' && sendMessage()} 
           />
           <button onClick={sendMessage}>Send</button>
           <input
