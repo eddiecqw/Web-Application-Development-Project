@@ -140,6 +140,24 @@ app.get('/api/rooms', (req, res) => {
 // ✅ WebSocket Handler
 wsServer.on('connection', async (connection, request) => {
   const { username } = url.parse(request.url, true).query;
+  // ⚠️ 關鍵修復：尋找是否已經有同一個 username 的連線
+  const existingUuid = Object.keys(connections).find(
+    (key) => connections[key]._username === username
+  );
+
+  if (existingUuid) {
+    // 踢掉舊連線
+    connections[existingUuid].send(
+      JSON.stringify([{
+        type: 'system',
+        content: '⚠️ 您的帳號已在其他裝置或分頁登入，此連線即將中斷。'
+      }])
+    );
+    connections[existingUuid].close(1008, 'Logged in from another device');
+    delete connections[existingUuid];
+    console.log(`👢 Kicked old connection for ${username}`);
+  }
+
   const uuid = uuidv4();
   connections[uuid] = connection;
 
@@ -425,26 +443,48 @@ wsServer.on('connection', async (connection, request) => {
 
   // ✅ Handle disconnect
   connection.on('close', () => {
-    console.log(`❌ ${username} disconnected`);
+    console.log(`❌ ${connection._username} disconnected`);
     const roomId = connection._roomId;
     const playerId = connection._playerId;
 
     if (roomId && gameRooms[roomId]) {
-      gameRooms[roomId].players = gameRooms[roomId].players.filter(
-        (player) => player.id !== playerId
-      );
-      broadcastToRoom(roomId, {
-        type: 'GAME_PLAYER_UPDATE',
-        data: { players: gameRooms[roomId].players },
-      });
+      const room = gameRooms[roomId];
+      
+      // 把斷線的玩家從陣列中移除
+      room.players = room.players.filter((player) => player.id !== playerId);
 
-      // 删除空房间
-      if (gameRooms[roomId].players.length === 0) {
+      if (room.players.length === 0) {
+        // 房間空了，直接刪除
         delete gameRooms[roomId];
+      } else {
+        // ⚠️ 關鍵修復：如果跑掉的是畫家，必須指派新畫家！
+        if (room.painterId === playerId) {
+          // 直接把畫筆交給目前陣列裡的第一個人
+          room.painterId = room.players[0].id;
+          room.players.forEach(p => p.isPainter = (p.id === room.painterId));
+          
+          // 廣播新回合開始 (讓新畫家接手)
+          broadcastToRoom(roomId, {
+            type: 'GAME_NEW_ROUND',
+            data: {
+              players: room.players,
+              word: room.word, // 題目維持不變或產生新的
+              painterId: room.painterId,
+              hasTimeLimit: room.hasTimeLimit,
+              timeLimit: room.timeLimit
+            },
+          });
+        } else {
+          // 如果跑掉的只是猜題者，單純更新玩家列表就好
+          broadcastToRoom(roomId, {
+            type: 'GAME_PLAYER_UPDATE',
+            data: { players: room.players },
+          });
+        }
       }
     }
-
-    delete connections[uuid];
+    
+    delete connections[uuid]; // 記得要有這個 uuid 是全域變數
   });
 });
 
