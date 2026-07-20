@@ -28,11 +28,13 @@ export default function DrawGuessPage({ user }) {
     bgmSound.current.loop = true;
     bgmSound.current.volume = 0.3; // BGM 音量調低到 30%
   }, []);
-
+  const baseWsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:53840/ws';
+  const wsUrl = `${baseWsUrl}?username=${encodeURIComponent(user.email)}`;
+  /*
   const wsUrl = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') +
                 '//' + window.location.host + '/ws' +
                 '?username=' + encodeURIComponent(user.email);
-
+  */
   const {
     createRoom,
     joinRoom,
