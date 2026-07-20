@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:53840';
 export default function Register() {
   const location = useLocation();
 
@@ -54,7 +55,7 @@ export default function Register() {
 
   const checkAccountExists = async () => {
     try {
-      const response = await fetch("/api/auth/check-account", {
+      const response = await fetch(`${apiUrl}/api/auth/check-account`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -79,7 +80,7 @@ export default function Register() {
     }
 
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch(`${apiUrl}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -103,7 +104,7 @@ export default function Register() {
     }
 
     try {
-      const response = await fetch("/api/auth/check-account", {
+      const response = await fetch(`${apiUrl}/api/auth/check-account`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
