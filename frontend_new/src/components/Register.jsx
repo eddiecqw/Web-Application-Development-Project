@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:53840';
+
 export default function Register() {
   const location = useLocation();
 
@@ -17,6 +18,11 @@ export default function Register() {
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
   const [message, setMessage] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
+  
+  // 👁️ 新增：分別控制兩個密碼框的顯示狀態
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const navigate = useNavigate();
 
   const validateForm = () => {
@@ -149,22 +155,64 @@ export default function Register() {
 
         {message && <label className="errorLabel">{message}</label>}
 
-        <input
-          className="inputBox"
-          type="password"
-          placeholder="Enter your Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        {/* 👁️ 修改：第一個密碼框 */}
+        <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <input
+            className="inputBox"
+            type={showPassword ? "text" : "password"}
+            placeholder="Enter your Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ paddingRight: '40px', width: '100%' }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            style={{
+              position: 'absolute',
+              right: '15px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '1.2rem',
+              padding: 0
+            }}
+          >
+            {showPassword ? '🙈' : '👁️'}
+          </button>
+        </div>
         {passwordError && <label className="errorLabel">{passwordError}</label>}
 
-        <input
-          className="inputBox"
-          type="password"
-          placeholder="Confirm your password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-        />
+        {/* 👁️ 修改：第二個確認密碼框 */}
+        <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <input
+            className="inputBox"
+            type={showConfirmPassword ? "text" : "password"}
+            placeholder="Confirm your password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            style={{ paddingRight: '40px', width: '100%' }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            style={{
+              position: 'absolute',
+              right: '15px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '1.2rem',
+              padding: 0
+            }}
+          >
+            {showConfirmPassword ? '🙈' : '👁️'}
+          </button>
+        </div>
         {confirmPasswordError && (
           <label className="errorLabel">{confirmPasswordError}</label>
         )}

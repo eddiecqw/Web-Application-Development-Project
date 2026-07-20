@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:53840';
+
 export function Login({ onLogin  }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  
+  // 👁️ 新增：控制密碼是否顯示的狀態
+  const [showPassword, setShowPassword] = useState(false);
+  
   const navigate = useNavigate();
 
   const validateForm = () => {
@@ -32,19 +37,12 @@ export function Login({ onLogin  }) {
 
   const handleLogin = async () => {
     try {
-      /*const response = await fetch('http://localhost:53840/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({email:email, password:password}),
-      });*/
-      // 1. 修改 handleLogin 內的 fetch：
       const response = await fetch(`${apiUrl}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({email:email, password:password}),
       });
 
-      // 添加 HTTP 状态码检查
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Login failed');
@@ -63,7 +61,6 @@ export function Login({ onLogin  }) {
   };
 
   const handleRegister = () => {
-    // 导航到注册页面并携带当前表单数据
     navigate('/register', {
       state: {
         prefilledEmail: email,
@@ -80,12 +77,6 @@ export function Login({ onLogin  }) {
     if (!validateForm()) return;
 
     try {
-      // 檢查賬戶是否存在
-      /*const checkResponse = await fetch('http://localhost:53840/api/auth/check-account', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });*/
       const checkResponse = await fetch(`${apiUrl}/api/auth/check-account`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,7 +90,6 @@ export function Login({ onLogin  }) {
         const confirmCreate = window.confirm('Account not found. Create new account?');
         if (confirmCreate) {
           handleRegister();
-          //await handleLogin();
         }
       }
     } catch (error) {
@@ -129,13 +119,34 @@ export function Login({ onLogin  }) {
           />
           {emailError && <div className="errorLabel">{emailError}</div>}
 
-          <input
-            className="inputBox"
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          {/* 👁️ 修改：將密碼輸入框包裝起來，加入小眼睛按鈕 */}
+          <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
+            <input
+              className="inputBox"
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{ paddingRight: '40px', width: '100%' }} 
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                right: '15px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '1.2rem',
+                padding: 0
+              }}
+            >
+              {showPassword ? '🙈' : '👁️'}
+            </button>
+          </div>
           {passwordError && <div className="errorLabel">{passwordError}</div>}
 
           <div className="buttonContainer">
