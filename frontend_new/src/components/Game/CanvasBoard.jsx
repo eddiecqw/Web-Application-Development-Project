@@ -3,13 +3,10 @@ import { fabric } from 'fabric';
 
 const CanvasBoard = forwardRef(({ isPainter, sendDraw, brushColor, brushSize }, ref) => {
   const wrapperRef = useRef(null);
-  const canvasRef = useRef(null);
   const fabricCanvas = useRef(null);
-  const isInitialized = useRef(false);
-
+  
   const isPainterRef = useRef(isPainter);
   const sendDrawRef = useRef(sendDraw);
-  
   const redoStack = useRef([]);
 
   useEffect(() => {
@@ -31,9 +28,15 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw, brushColor, brushSize }, 
   }, [brushColor, brushSize]);
 
   useEffect(() => {
-    if (!canvasRef.current || isInitialized.current) return;
+    if (!wrapperRef.current) return;
 
-    const canvas = new fabric.Canvas(canvasRef.current, {
+    // 🌟 核心修復 1：徹底解決「幽靈畫布」
+    // 每次掛載前，徹底清空容器，然後動態生成全新的 canvas 標籤
+    wrapperRef.current.innerHTML = ''; 
+    const canvasEl = document.createElement('canvas');
+    wrapperRef.current.appendChild(canvasEl);
+
+    const canvas = new fabric.Canvas(canvasEl, {
       isDrawingMode: isPainterRef.current,
       width: 800,
       height: 600,
@@ -44,11 +47,9 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw, brushColor, brushSize }, 
     canvas.freeDrawingBrush.width = parseInt(brushSize || 5, 10);
 
     fabricCanvas.current = canvas;
-    isInitialized.current = true;
 
     const handlePathCreated = (e) => {
       if (!isPainterRef.current) return;
-      
       redoStack.current = [];
       const path = e.path.toObject();
       sendDrawRef.current(path);
@@ -65,40 +66,38 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw, brushColor, brushSize }, 
           height: 600 * scale
         });
         fabricCanvas.current.setZoom(scale);
-        fabricCanvas.current.calcOffset();
+        fabricCanvas.current.calcOffset(); // 確保畫筆座標精準
       }
     };
 
     window.addEventListener('resize', handleResize);
-    setTimeout(handleResize, 50);
+    setTimeout(handleResize, 100);
 
     return () => {
       window.removeEventListener('resize', handleResize);
       canvas.off('path:created', handlePathCreated);
       canvas.dispose();
       fabricCanvas.current = null;
-      isInitialized.current = false;
+      // 卸載時徹底銷毀 DOM 節點，不留殘骸
+      if (wrapperRef.current) {
+        wrapperRef.current.innerHTML = '';
+      }
     };
   }, []); 
 
-  // 暴露方法給 DrawGuessPage 控制
   useImperativeHandle(ref, () => ({
     drawPath: (pathData) => {
-      // 💡 關鍵修復 1：如果是畫家自己，絕對不處理從伺服器回傳的筆畫！避免回音導致畫布崩潰
+      // 💡 畫家絕對不處理回傳的廣播，避免回音干擾
       if (!fabricCanvas.current || isPainterRef.current) return;
       
-      try {
-        // 💡 關鍵修復 2：放棄不穩定的 enlivenObjects，直接手動建立 Path 物件！確保所有玩家都能看到
-        const pathObj = new fabric.Path(pathData.path, pathData);
-        pathObj.set({
-          selectable: false,
-          evented: false
+      // 🌟 核心修復 2：改回最穩定、不會雙重位移的 enlivenObjects，保證猜測者能看見
+      fabric.util.enlivenObjects([pathData], (objects) => {
+        objects.forEach(obj => {
+          obj.set({ selectable: false, evented: false });
+          fabricCanvas.current.add(obj);
         });
-        fabricCanvas.current.add(pathObj);
         fabricCanvas.current.renderAll();
-      } catch (error) {
-        console.error("Canvas draw error:", error);
-      }
+      });
     },
     undo: (broadcast = true) => {
       if (!fabricCanvas.current) return;
@@ -116,21 +115,17 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw, brushColor, brushSize }, 
     redo: () => {
       if (!fabricCanvas.current || redoStack.current.length === 0) return;
       const pathData = redoStack.current.pop();
-      
-      try {
-        const pathObj = new fabric.Path(pathData.path, pathData);
-        pathObj.set({ selectable: false, evented: false });
-        fabricCanvas.current.add(pathObj);
+      fabric.util.enlivenObjects([pathData], (objects) => {
+        objects.forEach(obj => {
+          obj.set({ selectable: false, evented: false });
+          fabricCanvas.current.add(obj);
+        });
         fabricCanvas.current.renderAll();
         sendDrawRef.current(pathData);
-      } catch (error) {
-        console.error("Redo error:", error);
-      }
+      });
     },
     clear: (broadcast = true) => {
-      // 💡 確保畫家不會被別人的 clear 廣播意外清空
       if (!broadcast && isPainterRef.current) return;
-
       if (fabricCanvas.current) {
         fabricCanvas.current.clear();
         fabricCanvas.current.backgroundColor = '#ffffff';
@@ -144,9 +139,21 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw, brushColor, brushSize }, 
   }));
 
   return (
-    <div ref={wrapperRef} style={{ display: 'flex', justifyContent: 'center', width: '100%', overflow: 'hidden', marginBottom: '1rem' }}>
-      <canvas ref={canvasRef} style={{ border: '2px solid #ddd', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', backgroundColor: 'white', touchAction: 'none' }} />
-    </div>
+    <div 
+      ref={wrapperRef} 
+      style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        width: '100%', 
+        overflow: 'hidden', 
+        marginBottom: '1rem',
+        border: '2px solid #ddd', 
+        borderRadius: '8px', 
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
+        backgroundColor: 'white', 
+        touchAction: 'none' 
+      }} 
+    />
   );
 });
 
