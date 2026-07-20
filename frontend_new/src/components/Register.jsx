@@ -1,25 +1,39 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:53840';
+
+// 🎨 自訂的精美 SVG 圖標
+const EyeOpenIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', color: '#666' }}>
+    <path d="M2 12c0 0 5-7 10-7s10 7 10 7-5 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const EyeClosedIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', color: '#666' }}>
+    <path d="M3 10C8 16 16 16 21 10" />
+    <path d="M12 15V19" />
+    <path d="M8 14L6 17" />
+    <path d="M16 14L18 17" />
+    <path d="M4.5 11.5L2 13" />
+    <path d="M19.5 11.5L22 13" />
+  </svg>
+);
 
 export default function Register() {
   const location = useLocation();
 
-  const [email, setEmail] = useState(
-    location.state?.prefilledEmail || ""
-  );
-  const [password, setPassword] = useState(
-    location.state?.prefilledPassword || ""
-  );
+  const [email, setEmail] = useState(location.state?.prefilledEmail || "");
+  const [password, setPassword] = useState(location.state?.prefilledPassword || "");
   const [confirmPassword, setConfirmPassword] = useState("");
+  
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
   const [message, setMessage] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
   
-  // 👁️ 新增：分別控制兩個密碼框的顯示狀態
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -155,62 +169,62 @@ export default function Register() {
 
         {message && <label className="errorLabel">{message}</label>}
 
-        {/* 👁️ 修改：第一個密碼框 */}
-        <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
+        {/* ✨ 第一個密碼框 */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <input
             className="inputBox"
             type={showPassword ? "text" : "password"}
             placeholder="Enter your Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            style={{ paddingRight: '40px', width: '100%' }}
+            style={{ paddingRight: '40px' }}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             style={{
               position: 'absolute',
-              right: '15px',
-              top: '50%',
-              transform: 'translateY(-50%)',
+              right: '10px',
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              fontSize: '1.2rem',
-              padding: 0
+              padding: '0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
-            {showPassword ? '🙈' : '👁️'}
+            {showPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
           </button>
         </div>
         {passwordError && <label className="errorLabel">{passwordError}</label>}
 
-        {/* 👁️ 修改：第二個確認密碼框 */}
-        <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
+        {/* ✨ 第二個確認密碼框 */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <input
             className="inputBox"
             type={showConfirmPassword ? "text" : "password"}
             placeholder="Confirm your password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            style={{ paddingRight: '40px', width: '100%' }}
+            style={{ paddingRight: '40px' }}
           />
           <button
             type="button"
             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
             style={{
               position: 'absolute',
-              right: '15px',
-              top: '50%',
-              transform: 'translateY(-50%)',
+              right: '10px',
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              fontSize: '1.2rem',
-              padding: 0
+              padding: '0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
-            {showConfirmPassword ? '🙈' : '👁️'}
+            {showConfirmPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
           </button>
         </div>
         {confirmPasswordError && (

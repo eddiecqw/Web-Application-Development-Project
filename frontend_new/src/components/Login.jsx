@@ -2,15 +2,32 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:53840';
 
+// 🎨 自訂的精美 SVG 圖標 (睜眼)
+const EyeOpenIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', color: '#666' }}>
+    <path d="M2 12c0 0 5-7 10-7s10 7 10 7-5 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+// 🎨 自訂的精美 SVG 圖標 (閉眼 - 依照你提供的圖片風格)
+const EyeClosedIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', color: '#666' }}>
+    <path d="M3 10C8 16 16 16 21 10" />
+    <path d="M12 15V19" />
+    <path d="M8 14L6 17" />
+    <path d="M16 14L18 17" />
+    <path d="M4.5 11.5L2 13" />
+    <path d="M19.5 11.5L22 13" />
+  </svg>
+);
+
 export function Login({ onLogin  }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  
-  // 👁️ 新增：控制密碼是否顯示的狀態
   const [showPassword, setShowPassword] = useState(false);
-  
   const navigate = useNavigate();
 
   const validateForm = () => {
@@ -62,10 +79,7 @@ export function Login({ onLogin  }) {
 
   const handleRegister = () => {
     navigate('/register', {
-      state: {
-        prefilledEmail: email,
-        prefilledPassword: password
-      }
+      state: { prefilledEmail: email, prefilledPassword: password }
     });
   };
 
@@ -110,6 +124,7 @@ export function Login({ onLogin  }) {
           <div>Designer：CHEN QUANWEI (Eddie)</div>
         </div>
         <form onSubmit={handleSubmit} className="inputContainer">
+          
           <input
             className="inputBox"
             type="email"
@@ -119,32 +134,32 @@ export function Login({ onLogin  }) {
           />
           {emailError && <div className="errorLabel">{emailError}</div>}
 
-          {/* 👁️ 修改：將密碼輸入框包裝起來，加入小眼睛按鈕 */}
-          <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
+          {/* ✨ 修正：移除硬編碼的寬度，讓父層只作相對定位，完全繼承 inputBox 尺寸 */}
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <input
               className="inputBox"
               type={showPassword ? "text" : "password"}
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={{ paddingRight: '40px', width: '100%' }} 
+              style={{ paddingRight: '40px' }} 
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               style={{
                 position: 'absolute',
-                right: '15px',
-                top: '50%',
-                transform: 'translateY(-50%)',
+                right: '10px',
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                fontSize: '1.2rem',
-                padding: 0
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
             >
-              {showPassword ? '🙈' : '👁️'}
+              {showPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
             </button>
           </div>
           {passwordError && <div className="errorLabel">{passwordError}</div>}
