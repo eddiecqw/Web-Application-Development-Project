@@ -21,7 +21,7 @@ const app = express();
 app.use(
   cors({
     //origin: 'http://localhost:5173',
-    origin: ['http://localhost:5173','https://web-application-development-project-rfmutz8st.vercel.app'],
+    origin: ['http://localhost:5173','https://web-application-development-project-rfmutz8st.vercel.app','https://web-application-development-project-nq0r4b54q.vercel.app'],
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type'],
     //credentials: true,
