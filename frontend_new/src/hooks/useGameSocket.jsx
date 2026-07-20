@@ -27,7 +27,6 @@ export default function useGameSocket(url, eventHandlers = {}) {
     ws.current.onmessage = (event) => {
       try {
         const { type, data } = JSON.parse(event.data);
-        console.log('📦 WebSocket 收到事件:', type, data); // Debug 追蹤用
 
         switch (type) {
           case 'GAME_ROOM_CREATED':
@@ -68,7 +67,13 @@ export default function useGameSocket(url, eventHandlers = {}) {
             setPlayers(data.players);
             setIsPainter(data.painterId === playerIdRef.current); // 準確切換畫家
             if (data.word) setCurrentWord(data.word); // 準確更新題庫
-            handlersRef.current['GAME_NEW_ROUND']?.(data); // 觸發畫板清空
+            
+            // 🌟 核心修復：使用 setTimeout 延遲 50 毫秒觸發畫板清空
+            // 讓 React 有時間把 setIsPainter(false) 的狀態更新到畫板組件中，
+            // 確實卸下畫布的「防止誤清空保護機制」，確保舊畫家的畫面能被成功清空！
+            setTimeout(() => {
+              handlersRef.current['GAME_NEW_ROUND']?.(data); 
+            }, 50);
             break;
 
           default:
@@ -91,14 +96,14 @@ export default function useGameSocket(url, eventHandlers = {}) {
     };
   }, [url]);
 
-  // 使用 useCallback 包裝，防止 DrawGuessPage 不斷重新渲染
   const send = useCallback((type, data = {}) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({ type, data }));
     }
   }, []);
 
-  const createRoom = useCallback((settings) => send('GAME_CREATE_ROOM', settings), [send]);  const joinRoom = useCallback((roomId) => send('GAME_JOIN_ROOM', { roomId }), [send]);
+  const createRoom = useCallback((settings) => send('GAME_CREATE_ROOM', settings), [send]);  
+  const joinRoom = useCallback((roomId) => send('GAME_JOIN_ROOM', { roomId }), [send]);
   const sendDrawData = useCallback((path) => send('GAME_DRAW_DATA', { path }), [send]);
   const submitGuess = useCallback((guess) => send('GAME_SUBMIT_GUESS', { guess }), [send]);
 
