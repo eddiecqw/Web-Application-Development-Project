@@ -10,7 +10,6 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw, brushColor, brushSize }, 
   const isPainterRef = useRef(isPainter);
   const sendDrawRef = useRef(sendDraw);
   
-  // 📝 新增：用來儲存被撤銷的筆畫，以便「重做」
   const redoStack = useRef([]);
 
   useEffect(() => {
@@ -50,9 +49,7 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw, brushColor, brushSize }, 
     const handlePathCreated = (e) => {
       if (!isPainterRef.current) return;
       
-      // 只要畫了新的一筆，重做的歷史紀錄就必須清空
       redoStack.current = [];
-      
       const path = e.path.toObject();
       sendDrawRef.current(path);
     };
@@ -84,20 +81,25 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw, brushColor, brushSize }, 
     };
   }, []); 
 
-  // 暴露更多方法給 DrawGuessPage 控制
+  // 暴露方法給 DrawGuessPage 控制
   useImperativeHandle(ref, () => ({
     drawPath: (pathData) => {
-      if (!fabricCanvas.current) return;
-      fabric.util.enlivenObjects([pathData], (objects) => {
-        objects.forEach(obj => {
-          obj.selectable = false;
-          obj.evented = false;
-          fabricCanvas.current.add(obj);
+      // 💡 關鍵修復 1：如果是畫家自己，絕對不處理從伺服器回傳的筆畫！避免回音導致畫布崩潰
+      if (!fabricCanvas.current || isPainterRef.current) return;
+      
+      try {
+        // 💡 關鍵修復 2：放棄不穩定的 enlivenObjects，直接手動建立 Path 物件！確保所有玩家都能看到
+        const pathObj = new fabric.Path(pathData.path, pathData);
+        pathObj.set({
+          selectable: false,
+          evented: false
         });
+        fabricCanvas.current.add(pathObj);
         fabricCanvas.current.renderAll();
-      });
+      } catch (error) {
+        console.error("Canvas draw error:", error);
+      }
     },
-    // ⏪ 撤銷 (向後)
     undo: (broadcast = true) => {
       if (!fabricCanvas.current) return;
       const objects = fabricCanvas.current.getObjects();
@@ -105,37 +107,37 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw, brushColor, brushSize }, 
         const lastObj = objects[objects.length - 1];
         if (broadcast) {
           redoStack.current.push(lastObj.toObject());
-          sendDrawRef.current({ action: 'UNDO' }); // 透過網路通知其他人撤銷
+          sendDrawRef.current({ action: 'UNDO' }); 
         }
         fabricCanvas.current.remove(lastObj);
         fabricCanvas.current.renderAll();
       }
     },
-    // ⏩ 重做 (向前)
     redo: () => {
       if (!fabricCanvas.current || redoStack.current.length === 0) return;
       const pathData = redoStack.current.pop();
-      // 在本地畫出來
-      fabric.util.enlivenObjects([pathData], (objects) => {
-        objects.forEach(obj => {
-          obj.selectable = false;
-          obj.evented = false;
-          fabricCanvas.current.add(obj);
-        });
+      
+      try {
+        const pathObj = new fabric.Path(pathData.path, pathData);
+        pathObj.set({ selectable: false, evented: false });
+        fabricCanvas.current.add(pathObj);
         fabricCanvas.current.renderAll();
-      });
-      // 把重做的筆跡當作新的筆跡發送給其他人
-      sendDrawRef.current(pathData);
+        sendDrawRef.current(pathData);
+      } catch (error) {
+        console.error("Redo error:", error);
+      }
     },
-    // 🗑️ 清空畫板
     clear: (broadcast = true) => {
+      // 💡 確保畫家不會被別人的 clear 廣播意外清空
+      if (!broadcast && isPainterRef.current) return;
+
       if (fabricCanvas.current) {
         fabricCanvas.current.clear();
         fabricCanvas.current.backgroundColor = '#ffffff';
         fabricCanvas.current.renderAll();
         if (broadcast) {
           redoStack.current = [];
-          sendDrawRef.current({ action: 'CLEAR' }); // 透過網路通知其他人清空
+          sendDrawRef.current({ action: 'CLEAR' }); 
         }
       }
     }
