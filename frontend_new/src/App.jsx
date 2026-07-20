@@ -4,11 +4,16 @@ import {Cursor} from './components/Cursor';
 import { Login } from './components/Login';
 import Register from './components/Register';
 import DrawGuessPage from './pages/DrawGuessPage';
-import { Home } from './components/ChatRoom'; // 確保你的 ChatRoom.jsx 有 export { Home }
+import { Home } from './components/ChatRoom'; 
 import MapComponent from './components/MapComponent';
 import './App.css';
+
 const App = () => {
-  const [user, setUser] = useState(null);
+  // 網頁載入的第一瞬間，就去讀取 localStorage，確保重整不會登出
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
   return (
     <BrowserRouter>
@@ -23,7 +28,7 @@ const App = () => {
         />
         <Route 
           path="/" 
-          element={user ? <Home username={user.email} /> : <Navigate to="/login" replace />} 
+          element={user ? <Home username={user.email} onLogout={() => setUser(null)} /> : <Navigate to="/login" replace />} 
         />
         <Route 
           path="/cursor" 
