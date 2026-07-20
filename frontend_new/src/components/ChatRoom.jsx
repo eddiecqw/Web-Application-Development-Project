@@ -185,4 +185,3 @@ export function Home({ username ,onLogout}) {
       </div>
     </div>
   );
-}
