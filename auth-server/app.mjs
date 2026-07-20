@@ -21,7 +21,7 @@ const app = express();
 app.use(
   cors({
     //origin: 'http://localhost:5173',
-    origin:'*',
+    origin: ['http://localhost:5173','https://web-application-development-project-rfmutz8st.vercel.app'],
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type'],
     //credentials: true,
@@ -458,6 +458,6 @@ function broadcastToRoom(roomId, message) {
 }
 
 // ✅ Start Server
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0',() => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
