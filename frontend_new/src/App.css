@@ -449,40 +449,36 @@
 }
 
 /* =========================================================
-   手機端自適應設定 (螢幕寬度小於 768px 時觸發) - 已修復溢出與按鈕
+   手機端自適應設定 (螢幕寬度小於 768px 時觸發) - 聊天框高度極大化
 ========================================================= */
 @media (max-width: 768px) {
-  /* 1. 調整標題字體大小 */
-  .titleContainer {
-    font-size: 32px !important;
-  }
+  /* 1. 調整標題，盡可能縮小以節省空間 */
+  .titleContainer { font-size: 28px !important; }
+  h1 { font-size: 1.5em !important; margin: 0 !important; }
   
-  h1 {
-    font-size: 1.8em !important;
-    margin-top: 5px;
-  }
+  /* 隱藏不必要的提示文字，把空間還給聊天框 */
+  .name { display: none !important; }
 
-  /* 👇 2. 修復：按鈕縮小，讓它們可以在手機上並排顯示 👇 */
+  /* 2. 按鈕優化：縮小字體與內邊距 */
   .nav-button {
-    padding: 8px 12px !important;
-    font-size: 13px !important;
-    flex: 1 1 auto;      /* 允許按鈕彈性縮放 */
-    white-space: nowrap; /* 防止按鈕內的文字斷行 */
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    flex: 1 1 auto;      
+    white-space: nowrap; 
   }
 
-  /* 👇 3. 修復：徹底解決內容區塊超出邊界 👇 */
-  #root {
-    padding: 10px !important; 
-  }
+  /* 3. 移除外圍留白，讓 wrapper 貼齊手機邊緣 */
+  #root { padding: 0 !important; }
 
-  /* 1. 確保外層 wrapper 真正填滿螢幕，並使用 flex 佈局 */
+  /* 🌟 4. 關鍵修復：使用 100dvh (動態視窗高度) 解決手機網址列吃掉畫面的問題 */
   .content-wrapper {
-    margin: 10px 0 !important;   
-    padding: 15px 10px !important; 
+    margin: 0 !important;   
+    padding: 10px 10px !important; 
     width: 100% !important;
-    height: calc(100vh - 20px) !important;
-    display: flex !important;           /* 🌟 確保使用 flex */
-    flex-direction: column !important;  /* 🌟 垂直排列 */
+    height: 100dvh !important;          /* 取代原本的 100vh，完美適應手機列 */
+    border-radius: 0 !important;        /* 手機版移除圓角，爭取最大可用空間 */
+    display: flex !important;           
+    flex-direction: column !important;  
   }
 
   .chat-container {
@@ -490,46 +486,44 @@
     padding: 0 !important;
   }
   
-  /* 2. 讓聊天區域 (chat-box) 強制佔用所有剩餘空間 */
+  /* 🌟 5. 確保 chat-box 具有彈性壓縮與伸展的能力 */
   .chat-box {
-    /* 移除寫死的 height: 380px (如果你有的話) */
-    flex: 1 1 auto !important;          /* 🌟 這是關鍵！讓它彈性生長 */
-    min-height: 200px !important;       /* 給它一個最小高度保底 */
+    flex: 1 1 auto !important;          
+    min-height: 0 !important;           /* 讓 flexbox 允許它壓縮，避免被內部內容撐破 */
     width: 100% !important;
     padding: 10px !important;
+    margin: 5px 0 !important;
   }
-  /* 3. 縮小底部按鈕的留白，把空間還給聊天區 */
+
+  /* 6. 縮小底部按鈕區的留白 */
   .buttonContainer {
-    height: auto !important;            /* 🌟 移除原本可能寫死的 260px 高度 */
-    margin-top: 10px !important;        /* 縮小上方間距 */
-    padding-bottom: 10px !important;
+    height: auto !important;            
+    margin-top: 5px !important;         
+    padding-bottom: 5px !important;
   }
-  /* 4. 聊天輸入框優化 */
+
+  /* 7. 聊天輸入框優化 */
   .chat-input {
-    flex-direction: column;
-    gap: 8px;
+    flex-direction: row !important;     /* 手機上輸入框跟送出按鈕維持同一行比較省空間 */
+    gap: 5px !important;
   }
   
   .chat-input input {
     width: 100% !important;
-    padding: 12px !important;
+    padding: 10px !important;
   }
 
   .chat-input button {
-    width: 100%;
-    padding: 12px;
+    width: auto !important;
+    padding: 10px 15px !important;
   }
 
-  /* 5. 其他輸入框自適應 */
-  .resultContainer, 
-  .historyItem, 
-  .inputBox, 
-  .historyContainer { 
+  /* 其他遊戲區域的自適應維持不變 */
+  .resultContainer, .historyItem, .inputBox, .historyContainer { 
     width: 100% !important;
     max-width: 100%;
   }
 
-  /* 6. 遊戲佈局 */
   .game-container {
     display: flex !important;
     flex-direction: column;
