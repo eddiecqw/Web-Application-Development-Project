@@ -20,26 +20,23 @@ export default function DrawGuessPage({ user }) {
 
   // 🎵 音效與 BGM 狀態管理
   const [isMuted, setIsMuted] = useState(false);
-  const correctSound = useRef(new Audio('/success.mp3')); // 答對音效
-  const bgmSound = useRef(new Audio('/The_Carousel_Clock.mp3'));         // 歡快 BGM
+  const correctSound = useRef(new Audio('/success.mp3')); 
+  const bgmSound = useRef(new Audio('/The_Carousel_Clock.mp3'));         
 
-  // 🎵 設定 BGM 屬性：無限循環 & 降低音量避免太吵
   useEffect(() => {
     bgmSound.current.loop = true;
-    bgmSound.current.volume = 0.3; // BGM 音量調低到 30%
+    bgmSound.current.volume = 0.3; 
   }, []);
+  
   const baseWsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:53840/ws';
   const wsUrl = `${baseWsUrl}?username=${encodeURIComponent(user.email)}`;
-  /*
-  const wsUrl = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') +
-                '//' + window.location.host + '/ws' +
-                '?username=' + encodeURIComponent(user.email);
-  */
+  
   const {
     createRoom,
     joinRoom,
     sendDrawData,
     submitGuess,
+    leaveRoom, // ✨ 修改 1：把我們新寫的 leaveRoom 從 Hook 中拿出來
     gameState: { roomId, players, isPainter, playerId, currentWord },
   } = useGameSocket(wsUrl, {
     DRAW_DATA_RECEIVED: (data) => {
@@ -53,13 +50,11 @@ export default function DrawGuessPage({ user }) {
     },
     GUESS_RESULT: (data) => {
       if (data.isCorrect) {
-        // 🎵 如果沒有靜音，才播放音效
         if (!isMuted) {
-          correctSound.current.currentTime = 0; // 讓音效可以連續快速播放
+          correctSound.current.currentTime = 0; 
           correctSound.current.play().catch(e => console.log('音效播放被阻擋:', e));
         }
         
-        // 📳 手機震動回饋
         if (navigator.vibrate) {
           navigator.vibrate([100, 50, 100]);
         }
@@ -80,7 +75,6 @@ export default function DrawGuessPage({ user }) {
     }
   });
 
-  // 🎵 BGM 播放控制：當成功進入房間 (roomId 存在) 且未被靜音時，開始播放 BGM
   useEffect(() => {
     if (roomId && !isMuted) {
       bgmSound.current.play().catch(e => console.log('BGM 自動播放被瀏覽器阻擋:', e));
@@ -88,7 +82,6 @@ export default function DrawGuessPage({ user }) {
       bgmSound.current.pause();
     }
     
-    // 離開頁面時確保音樂停止
     return () => {
       bgmSound.current.pause();
     };
@@ -112,15 +105,15 @@ export default function DrawGuessPage({ user }) {
   const handleSubmitGuess = (guess) => submitGuess(guess);
 
   const handleLeaveGame = () => {
-    const isConfirmed = window.confirm("⚠️ 確定要離開遊戲嗎？\n\n返回聊天室將會失去您當前的遊戲進度與分數！");
+    // ✨ 修改 2：更新提示文字，並呼叫 leaveRoom() 徹底清除房間紀錄
+    const isConfirmed = window.confirm("⚠️ 確定要主動離開遊戲嗎？\n\n主動返回聊天室將會清除您當前的房間紀錄與分數！\n(若是意外刷新網頁，分數會自動保留)");
     if (isConfirmed) {
-      // 確保離開時停止音樂
       bgmSound.current.pause();
+      leaveRoom(); // 👈 關鍵呼叫：清除 sessionStorage 裡的 roomId
       navigate('/');
     }
   };
 
-  // 🎵 切換靜音狀態
   const toggleMute = () => {
     setIsMuted(!isMuted);
   };
@@ -128,7 +121,6 @@ export default function DrawGuessPage({ user }) {
   return (
     <div className="flex flex-col items-center w-full p-4" style={{ color: '#333' }}>
       
-      {/* 頂部導航與音效開關區塊 */}
       <div style={{ width: '100%', maxWidth: '1152px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <button 
           onClick={handleLeaveGame}
@@ -138,7 +130,6 @@ export default function DrawGuessPage({ user }) {
           ← 離開遊戲 (Back to Chat)
         </button>
 
-        {/* 🔊 音效/BGM 開關按鈕 */}
         <button 
           onClick={toggleMute}
           style={{ 

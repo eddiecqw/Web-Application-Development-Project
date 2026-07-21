@@ -284,7 +284,8 @@ wsServer.on('connection', async (connection, request) => {
           painterId: playerId,
           word,
           hasTimeLimit, 
-          timeLimit     
+          timeLimit,    
+          scoreHistory: { [username]: 0 } 
         };
       
         connection._roomId = roomId;
@@ -335,10 +336,12 @@ wsServer.on('connection', async (connection, request) => {
         }
 
         const playerId = uuidv4();
+        // ✨ 新增：去檔案庫檢查這個玩家之前有沒有分數，沒有的話就是 0
+        const previousScore = room.scoreHistory[username] || 0;
         const player = {
           id: playerId,
           name: username,
-          score: 0,
+          score: previousScore, // ✨ 恢復歷史分數
           isPainter: false,
         };
 
@@ -390,11 +393,13 @@ wsServer.on('connection', async (connection, request) => {
           if (guesser) {
             guesser.score += 100;
             scoreUpdate[guesser.id] = guesser.score;
+            room.scoreHistory[guesser.name] = guesser.score;// ✨ 同步更新到檔案庫
           }
           const painter = room.players.find(p => p.id === room.painterId);
           if (painter) {
             painter.score += 50;
             scoreUpdate[painter.id] = painter.score;
+            room.scoreHistory[painter.name] = painter.score; // ✨ 同步更新到檔案庫
           }
       
           const currentPainterIndex = room.players.findIndex(p => p.id === room.painterId);
