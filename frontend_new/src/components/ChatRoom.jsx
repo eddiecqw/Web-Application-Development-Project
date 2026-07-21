@@ -163,37 +163,67 @@ export function Home({ username ,onLogout}) {
           <Link to="/draw-guess"><button className="nav-button">🎨 Start Drawing Game</button></Link>
         </div>
   
-        <div className="chat-box" style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '10px' }}>
-          {messages.map((msg, index) => (
-            <div key={index} className="chat-message" style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              background: 'rgba(255, 255, 255, 0.85)', 
-              padding: '10px 15px', 
-              borderRadius: '12px',
-              boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
-              alignSelf: 'flex-start',
-              width: '100%',
-              boxSizing: 'border-box'
-            }}>
-              {/* 發送者名稱 (上方) - 加入 break-all 防止超長 Email 撐爆畫面 */}
-              <div style={{ fontSize: '0.8rem', color: '#666', marginBottom: '6px', wordBreak: 'break-all' }}>
-                <strong>{msg.sender}</strong>
-              </div>
-              
-              {/* 訊息內容與時間 (下方) */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '15px' }}>
-                {/* 訊息本體 - 加入 break-word 確保長字串正常換行 */}
-                <div style={{ wordBreak: 'break-word', fontSize: '1rem', color: '#222', flex: 1 }}>
-                  {renderContent(msg)}
+        <div className="chat-box" style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '15px' }}>
+          {messages.map((msg, index) => {
+            // ✨ 判斷這則訊息是否是「我自己」發送的
+            const isOwnMessage = msg.sender === username;
+            
+            // 🔔 系統訊息獨立排版 (置中顯示、灰色膠囊狀)
+            if (msg.type === 'system') {
+              return (
+                <div key={index} style={{ display: 'flex', justifyContent: 'center', width: '100%', margin: '5px 0' }}>
+                  <div style={{ background: 'rgba(0,0,0,0.1)', padding: '6px 14px', borderRadius: '20px', fontSize: '0.8rem', color: '#555' }}>
+                    🔔 {msg.content}
+                  </div>
                 </div>
-                {/* 時間戳記 - 加入 whiteSpace: 'nowrap' 確保時間永遠不會被切斷成兩行 */}
-                <span className="timestamp" style={{ fontSize: '0.75rem', color: '#999', whiteSpace: 'nowrap' }}>
-                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+              );
+            }
+
+            // 💬 一般對話氣泡排版
+            return (
+              <div key={index} style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: isOwnMessage ? 'flex-end' : 'flex-start', // 自己靠右，別人靠左
+                width: '100%'
+              }}>
+                {/* 名字顯示 */}
+                <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: '4px', padding: '0 5px', wordBreak: 'break-all' }}>
+                  {msg.sender}
+                </div>
+                
+                {/* 聊天氣泡本體 */}
+                <div style={{
+                  background: isOwnMessage ? '#95ec69' : '#ffffff', // 自己的用微信綠，別人的用純白
+                  padding: '10px 15px',
+                  // 氣泡尖角設計：自己的尖角在右下，別人的尖角在左下
+                  borderRadius: isOwnMessage ? '15px 4px 15px 15px' : '4px 15px 15px 15px', 
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                  maxWidth: '85%', // 避免氣泡太寬，讓排版更像手機 App
+                  wordBreak: 'break-word',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '5px'
+                }}>
+                  {/* 訊息內容 */}
+                  <div style={{ fontSize: '1rem', color: '#222' }}>
+                    {renderContent(msg)}
+                  </div>
+                  
+                  {/* 時間戳記 */}
+                  <span style={{ 
+                    fontSize: '0.7rem', 
+                    // 配合背景色調整時間的顏色，確保對比度
+                    color: isOwnMessage ? '#5f9e40' : '#999', 
+                    alignSelf: 'flex-end',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {/* ✨ 新增：自動滾動的隱形目標錨點 */}
           <div ref={messagesEndRef} />
         </div>
