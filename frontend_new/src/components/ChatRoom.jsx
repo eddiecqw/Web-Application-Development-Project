@@ -14,13 +14,17 @@ export function Home({ username ,onLogout}) {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
   
-  // ✨ 新增：追蹤在線人數與地圖人數的狀態
   const [onlineCount, setOnlineCount] = useState(1);
   const [mapCount, setMapCount] = useState(0);
 
-  const fileInputRef = useRef(null);
+  // ✨ 新增：用於歷史訊息載入的狀態
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   
-  // ✨ 新增：用於自動滾動到最新訊息的隱形錨點
+  // ✨ 新增：精準控制滾動的計數器 (只有新訊息來時才觸發滾動)
+  const [scrollTick, setScrollTick] = useState(0);
+
+  const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   const { getWebSocket } = useWebSocket(WS_URL, {
@@ -42,31 +46,57 @@ export function Home({ username ,onLogout}) {
 
   useEffect(() => {
     if (!lastJsonMessage) return;
-    if (!Array.isArray(lastJsonMessage)) return;
-  
-    // ✨ 新增：攔截並解析系統廣播的人數狀態
-    const statusMsg = lastJsonMessage.find(msg => msg?.type === 'SYSTEM_STATUS');
-    if (statusMsg) {
-      setOnlineCount(statusMsg.data.online);
-      setMapCount(statusMsg.data.map);
-    }
 
-    const validMessages = lastJsonMessage.filter(
-      (msg) => 
-        msg?.type === 'text' || 
-        msg?.type === 'file' ||
-        msg?.type === 'system' 
-    );
-  
-    if (validMessages.length > 0) {
-      setMessages((prev) => [...prev, ...validMessages]);
+    // 處理陣列 (初始載入 或 別人發送的新訊息)
+    if (Array.isArray(lastJsonMessage)) {
+      const statusMsg = lastJsonMessage.find(msg => msg?.type === 'SYSTEM_STATUS');
+      if (statusMsg) {
+        setOnlineCount(statusMsg.data.online);
+        setMapCount(statusMsg.data.map);
+      }
+
+      const validMessages = lastJsonMessage.filter(
+        (msg) => 
+          msg?.type === 'text' || 
+          msg?.type === 'file' ||
+          msg?.type === 'system' 
+      );
+    
+      if (validMessages.length > 0) {
+        // 將新訊息加到最下方
+        setMessages((prev) => [...prev, ...validMessages]);
+        // ✨ 只有在收到新訊息時，才觸發滾動！
+        setScrollTick(t => t + 1);
+      }
+    } 
+    // ✨ 新增：處理單獨回傳的歷史訊息 (將舊訊息塞到最上方)
+    else if (lastJsonMessage.type === 'MORE_HISTORY') {
+      setIsLoadingHistory(false);
+      const historyMsgs = lastJsonMessage.data;
+      if (historyMsgs.length > 0) {
+        setMessages((prev) => [...historyMsgs, ...prev]);
+        // 如果回傳的數量少於 50 條，代表資料庫已經被掏空了
+        if (historyMsgs.length < 50) setHasMore(false);
+      } else {
+        setHasMore(false);
+      }
     }
   }, [lastJsonMessage]);
 
-  // ✨ 新增：當 messages 改變時，自動平滑滾動到底部
+  // ✨ 修改：依賴 scrollTick，確保載入舊訊息時不會被強制往下拉
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [scrollTick]);
+
+  // ✨ 新增：向後端請求載入更多歷史訊息
+  const loadMoreMessages = () => {
+    if (isLoadingHistory || !hasMore) return;
+    setIsLoadingHistory(true);
+    sendJsonMessage({
+      type: 'LOAD_MORE_MESSAGES',
+      data: { skip: messages.length, limit: 50 } // 告訴後端我們要跳過目前已經顯示的數量，再拿 50 條
+    });
+  };
 
   const sendMessage = () => {
     if (!message.trim()) return;
@@ -113,22 +143,14 @@ export function Home({ username ,onLogout}) {
 
     if (type === 'file') {
       if (mimeType?.startsWith('image/')) {
-        return <img src={content} alt={filename} className="media" style={{ maxWidth: '100%', height: 'auto' }} />;
+        return <img src={content} alt={filename} className="media" style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px' }} />;
       } else if (mimeType?.startsWith('video/')) {
-        return <video controls className="media" style={{ maxWidth: '100%' }}><source src={content} type={mimeType} /></video>;
+        return <video controls className="media" style={{ maxWidth: '100%', borderRadius: '8px' }}><source src={content} type={mimeType} /></video>;
       } else if (mimeType?.startsWith('audio/')) {
         return <audio controls className="media" style={{ maxWidth: '100%' }}><source src={content} type={mimeType} /></audio>;
       } else {
         return <a href={content} download={filename} className="file-link">📄 Download {filename}</a>;
       }
-    }
-    if (type === 'system') {
-      return (
-        <div className="system-message">
-          <span className="system-icon">🔔</span>
-          <span className="system-content">{content}</span>
-        </div>
-      );
     }
     return null;
   };
@@ -138,7 +160,6 @@ export function Home({ username ,onLogout}) {
       <div className="background-blur" />
       <div className="content-wrapper">
         
-        {/* ✨ 修改：將標題區塊改為 Flexbox，並在右上角加入人數統計面板 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <h1 className='rainbow-text' style={{ margin: 0 }}>Chat Room</h1>
           <div style={{ 
@@ -164,11 +185,34 @@ export function Home({ username ,onLogout}) {
         </div>
   
         <div className="chat-box" style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '15px' }}>
+          
+          {/* ✨ 新增：低調的「載入更多」按鈕 */}
+          {hasMore && messages.length >= 20 && (
+            <button 
+              onClick={loadMoreMessages}
+              disabled={isLoadingHistory}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#aaa',
+                fontSize: '0.85rem',
+                cursor: isLoadingHistory ? 'default' : 'pointer',
+                padding: '5px 0 15px 0',
+                textAlign: 'center',
+                width: '100%',
+                outline: 'none',
+                transition: 'color 0.2s'
+              }}
+              onMouseOver={(e) => !isLoadingHistory && (e.target.style.color = '#888')}
+              onMouseOut={(e) => (e.target.style.color = '#aaa')}
+            >
+              {isLoadingHistory ? '載入中...' : '⟳ 點擊載入較舊的訊息 (每次 50 條)'}
+            </button>
+          )}
+
           {messages.map((msg, index) => {
-            // ✨ 判斷這則訊息是否是「我自己」發送的
             const isOwnMessage = msg.sender === username;
             
-            // 🔔 系統訊息獨立排版 (置中顯示、灰色膠囊狀)
             if (msg.type === 'system') {
               return (
                 <div key={index} style={{ display: 'flex', justifyContent: 'center', width: '100%', margin: '5px 0' }}>
@@ -179,41 +223,34 @@ export function Home({ username ,onLogout}) {
               );
             }
 
-            // 💬 一般對話氣泡排版
             return (
               <div key={index} style={{ 
                 display: 'flex', 
                 flexDirection: 'column', 
-                alignItems: isOwnMessage ? 'flex-end' : 'flex-start', // 自己靠右，別人靠左
+                alignItems: isOwnMessage ? 'flex-end' : 'flex-start',
                 width: '100%'
               }}>
-                {/* 名字顯示 */}
                 <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: '4px', padding: '0 5px', wordBreak: 'break-all' }}>
                   {msg.sender}
                 </div>
                 
-                {/* 聊天氣泡本體 */}
                 <div style={{
-                  background: isOwnMessage ? '#95ec69' : '#ffffff', // 自己的用微信綠，別人的用純白
+                  background: isOwnMessage ? '#95ec69' : '#ffffff',
                   padding: '10px 15px',
-                  // 氣泡尖角設計：自己的尖角在右下，別人的尖角在左下
                   borderRadius: isOwnMessage ? '15px 4px 15px 15px' : '4px 15px 15px 15px', 
                   boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                  maxWidth: '85%', // 避免氣泡太寬，讓排版更像手機 App
+                  maxWidth: '85%', 
                   wordBreak: 'break-word',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '5px'
                 }}>
-                  {/* 訊息內容 */}
                   <div style={{ fontSize: '1rem', color: '#222' }}>
                     {renderContent(msg)}
                   </div>
                   
-                  {/* 時間戳記 */}
                   <span style={{ 
                     fontSize: '0.7rem', 
-                    // 配合背景色調整時間的顏色，確保對比度
                     color: isOwnMessage ? '#5f9e40' : '#999', 
                     alignSelf: 'flex-end',
                     whiteSpace: 'nowrap'
@@ -224,7 +261,6 @@ export function Home({ username ,onLogout}) {
               </div>
             );
           })}
-          {/* ✨ 新增：自動滾動的隱形目標錨點 */}
           <div ref={messagesEndRef} />
         </div>
   
@@ -253,7 +289,8 @@ export function Home({ username ,onLogout}) {
             </a>
             <button className='nav-button' onClick={handleLogout}>Log Out</button>
           </div>
-          <div style={{ fontSize: '12px', marginTop: '10px', color: '#666' }}>(Be aware you may lose your chat history before the latest 8 msgs)</div>
+          {/* ✨ 替換掉原本會嚇到用戶的文字 */}
+          <div style={{ fontSize: '12px', marginTop: '10px', color: '#666' }}>(Your chat history is securely saved. Scroll up to load more.)</div>
         </div>
       </div>
     </div>

@@ -145,12 +145,13 @@ wsServer.on('connection', async (connection, request) => {
   connections[uuid] = connection;
   connection._username = username;
 
+  // ✨ 修改：初始載入改為最新的 20 條訊息
   try {
     const messages = await db
       .collection('ChatMessages')
       .find()
       .sort({ timestamp: -1 })
-      .limit(8)
+      .limit(20) 
       .toArray();
 
     connection.send(JSON.stringify(messages.reverse()));
@@ -169,6 +170,29 @@ wsServer.on('connection', async (connection, request) => {
     const { type, data } = parsed;
 
     switch (type) {
+      
+      // ✨ 新增：處理索取更多歷史訊息的請求
+      case 'LOAD_MORE_MESSAGES': {
+        const skip = data.skip || 0;
+        const limit = data.limit || 50;
+        try {
+          const moreMsgs = await db.collection('ChatMessages')
+            .find()
+            .sort({ timestamp: -1 })
+            .skip(skip)
+            .limit(limit)
+            .toArray();
+            
+          connection.send(JSON.stringify({
+            type: 'MORE_HISTORY',
+            data: moreMsgs.reverse()
+          }));
+        } catch (error) {
+          console.error('❌ Error fetching history:', error);
+        }
+        break;
+      }
+
       case 'CHAT_MESSAGE': {
         const newMessage = {
           sender: username,
@@ -229,10 +253,9 @@ wsServer.on('connection', async (connection, request) => {
         break;
       }
 
-      // 🌟 新增：當收到前端離開地圖的訊號時，刪除使用者的座標並廣播給其他人
       case 'USER_LEFT_MAP': {
         delete connection._location;
-        broadcastSystemStatus(); // 更新地圖探索人數
+        broadcastSystemStatus(); 
         
         Object.values(connections).forEach((conn) => {
           if (conn !== connection && conn.readyState === 1) {
