@@ -19,11 +19,14 @@ export function Home({ username ,onLogout}) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
 
-  // ✨ 新增：滾動控制與未讀訊息狀態
+  // ✨ 滾動控制與未讀訊息狀態
   const [unreadCount, setUnreadCount] = useState(0);
   const chatBoxRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const isAtBottomRef = useRef(true); // 記錄用戶是否在最底部
+  const isAtBottomRef = useRef(true); 
+  
+  // 🛠️ 修復：補回被我不小心刪掉的檔案上傳引用 (fileInputRef)
+  const fileInputRef = useRef(null); 
 
   const { getWebSocket } = useWebSocket(WS_URL, {
     share: true,
@@ -38,23 +41,19 @@ export function Home({ username ,onLogout}) {
     navigate('/login', { replace: true });
   };
 
-  // ✨ 新增：平滑滾動到底部，並清空未讀
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     setUnreadCount(0);
     isAtBottomRef.current = true;
   };
 
-  // ✨ 新增：監聽用戶的手動滾動
   const handleScroll = () => {
     if (!chatBoxRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = chatBoxRef.current;
     
-    // 判斷是否在底部 (給予 100px 的容錯區間)
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
     isAtBottomRef.current = isAtBottom;
 
-    // 如果用戶手動滑到底部了，自動清空未讀標記
     if (isAtBottom && unreadCount > 0) {
       setUnreadCount(0);
     }
@@ -76,23 +75,18 @@ export function Home({ username ,onLogout}) {
     
       if (validMessages.length > 0) {
         setMessages((prev) => {
-          // 檢查這是不是初始載入 (如果是初始載入，強制滾到底部)
           const isInitialLoad = prev.length === 0;
-          // 檢查這批新訊息中，有沒有「我自己發送的」
           const hasMyMessage = validMessages.some(m => m.sender === username);
 
-          // ✨ 智慧滾動判斷：如果在底部、是第一次載入、或是自己發的訊息，才滾動！
           if (isInitialLoad || isAtBottomRef.current || hasMyMessage) {
             setTimeout(scrollToBottom, 100);
           } else {
-            // 如果用戶正在看歷史訊息，增加未讀數字，不干擾畫面
             setUnreadCount(c => c + validMessages.length);
           }
           return [...prev, ...validMessages];
         });
       }
     } else if (lastJsonMessage.type === 'MORE_HISTORY') {
-      // ✨ 進階優化：載入歷史訊息時，保持目前的閱讀進度，不讓畫面亂跳
       const previousScrollHeight = chatBoxRef.current?.scrollHeight || 0;
       setIsLoadingHistory(false);
       const historyMsgs = lastJsonMessage.data;
@@ -101,7 +95,6 @@ export function Home({ username ,onLogout}) {
         setMessages((prev) => [...historyMsgs, ...prev]);
         if (historyMsgs.length < 50) setHasMore(false);
 
-        // 無縫插入：將捲動條推回原本的位置
         setTimeout(() => {
           if (chatBoxRef.current) {
             const newScrollHeight = chatBoxRef.current.scrollHeight;
@@ -138,7 +131,7 @@ export function Home({ username ,onLogout}) {
     });
     setMessage('');
     setReplyingTo(null);
-    scrollToBottom(); // 發送訊息後強制滾到底部
+    scrollToBottom(); 
   };
 
   const sendFile = (event) => {
@@ -221,13 +214,12 @@ export function Home({ username ,onLogout}) {
           <Link to="/draw-guess"><button className="nav-button">🎨 Start Drawing Game</button></Link>
         </div>
   
-        {/* ✨ 修改：將 chat-box 包裝在一個相對定位的容器中，讓未讀按鈕可以浮在上面 */}
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', flex: 1, overflow: 'hidden' }}>
           
           <div 
             className="chat-box" 
             ref={chatBoxRef}
-            onScroll={handleScroll} // 綁定滾動監聽
+            onScroll={handleScroll} 
             style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '15px', overflowY: 'auto', flex: 1 }}
           >
             {hasMore && messages.length >= 20 && (
@@ -316,7 +308,6 @@ export function Home({ username ,onLogout}) {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* ✨ 微信風格的「未讀新訊息」懸浮按鈕 */}
           {unreadCount > 0 && (
             <button
               onClick={scrollToBottom}
@@ -327,7 +318,7 @@ export function Home({ username ,onLogout}) {
                 boxShadow: '0 4px 8px rgba(0,0,0,0.2)', cursor: 'pointer',
                 fontWeight: 'bold', fontSize: '0.85rem', display: 'flex',
                 alignItems: 'center', gap: '6px', zIndex: 10,
-                transition: 'transform 0.2s', animation: 'bounceIn 0.3s'
+                transition: 'transform 0.2s'
               }}
             >
               <span>↓</span>
