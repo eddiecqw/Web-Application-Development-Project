@@ -42,11 +42,10 @@ client
     process.exit(1);
   });
 
-// ✅ Create HTTP + WebSocket Server
 const server = http.createServer(app);
 const wsServer = new WebSocketServer({ server });
 const connections = {};
-const gameRooms = {}; // { roomId: { players: [], painterId: string } }
+const gameRooms = {}; 
 const GAME_WORDS = [
   '貓咪', '狗', '兔子', '獅子', '企鵝', '烏龜', '蝴蝶', '長頸鹿', '大象', '貓頭鷹', '鯊魚', '青蛙', '蛇', '蝸牛',
   '蘋果', '漢堡', '披薩', '壽司', '蛋糕', '西瓜', '香蕉', '甜甜圈', '熱狗', '薯條', '珍珠奶茶', '冰淇淋', '三明治',
@@ -55,24 +54,18 @@ const GAME_WORDS = [
   '太陽', '月亮', '星星', '雲', '閃電', '樹', '花', '彩虹', '火山', '雪人', '鑽石', '鬼魂', '外星人'
 ];
 
-// ✅ REST API: Register
 app.post('/api/auth/register', async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password)
-    return res.status(400).json({ success: false, message: 'Missing email or password' });
+  if (!email || !password) return res.status(400).json({ success: false, message: 'Missing email or password' });
 
   const existingUser = await db.collection('User').findOne({ email });
-  if (existingUser)
-    return res.status(409).json({ success: false, message: 'User already exists' });
+  if (existingUser) return res.status(409).json({ success: false, message: 'User already exists' });
 
   const hashedPassword = await bcrypt.hash(password, 10);
   await db.collection('User').insertOne({ email, password: hashedPassword });
-
-  console.log('✅ Registration Success:', email);
   res.json({ success: true, message: 'User registered successfully' });
 });
 
-// ✅ REST API: Check Account
 app.post('/api/auth/check-account', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ success: false, message: 'Missing email' });
@@ -81,38 +74,25 @@ app.post('/api/auth/check-account', async (req, res) => {
     const user = await db.collection('User').findOne({ email });
     res.json({ success: true, userExists: !!user });
   } catch (error) {
-    console.error('❌ Error checking account:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
-// ✅ REST API: Login
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log('Login attempt:', email);
-
     const user = await db.collection('User').findOne({ email });
-    if (!user) {
-      console.log('User not found:', email);
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    }
+    if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      console.log('Password mismatch for:', email);
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    }
+    if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
-    console.log('✅ Login success:', email);
     res.json({ success: true, message: 'Login successful', username: email });
   } catch (error) {
-    console.error('❌ Login error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
-// ✅ REST API: 獲取所有公開房間列表 (Room Discovery)
 app.get('/api/rooms', (req, res) => {
   try {
     const rooms = Object.keys(gameRooms).map(roomId => {
@@ -125,15 +105,12 @@ app.get('/api/rooms', (req, res) => {
     });
     res.json({ success: true, rooms });
   } catch (error) {
-    console.error('❌ Error fetching rooms:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
-// ✨ 新增：計算並廣播全站人數狀態的核心函數
 function broadcastSystemStatus() {
   const totalOnline = Object.keys(connections).length;
-  // 計算帶有 _location 屬性的連線數量（代表正在使用地圖）
   const mapUsers = Object.values(connections).filter(conn => conn._location).length;
   
   const statusMsg = JSON.stringify([{
@@ -146,17 +123,14 @@ function broadcastSystemStatus() {
   });
 }
 
-// ✅ WebSocket Handler
 wsServer.on('connection', async (connection, request) => {
   const { username } = url.parse(request.url, true).query;
   
-  // ⚠️ 關鍵修復：尋找是否已經有同一個 username 的連線
   const existingUuid = Object.keys(connections).find(
     (key) => connections[key]._username === username
   );
 
   if (existingUuid) {
-    // 踢掉舊連線
     connections[existingUuid].send(
       JSON.stringify([{
         type: 'system',
@@ -165,16 +139,12 @@ wsServer.on('connection', async (connection, request) => {
     );
     connections[existingUuid].close(1008, 'Logged in from another device');
     delete connections[existingUuid];
-    console.log(`👢 Kicked old connection for ${username}`);
   }
 
   const uuid = uuidv4();
   connections[uuid] = connection;
-
-  console.log(`✅ WebSocket connected: ${username}`);
   connection._username = username;
 
-  // Send last 8 messages from chat
   try {
     const messages = await db
       .collection('ChatMessages')
@@ -184,27 +154,21 @@ wsServer.on('connection', async (connection, request) => {
       .toArray();
 
     connection.send(JSON.stringify(messages.reverse()));
-  } catch (error) {
-    console.error('❌ Error fetching messages:', error);
-  }
+  } catch (error) {}
 
-  // ✨ 新連線加入後，廣播最新人數
   broadcastSystemStatus();
 
-  // ✅ Handle incoming messages
   connection.on('message', async (message) => {
     let parsed;
     try {
       parsed = JSON.parse(message.toString());
     } catch (err) {
-      console.error('❌ Invalid JSON received:', message.toString());
       return;
     }
 
     const { type, data } = parsed;
 
     switch (type) {
-      
       case 'CHAT_MESSAGE': {
         const newMessage = {
           sender: username,
@@ -217,9 +181,7 @@ wsServer.on('connection', async (connection, request) => {
 
         try {
           await db.collection('ChatMessages').insertOne(newMessage);
-        } catch (error) {
-          console.error('❌ Error saving message to DB:', error);
-        }
+        } catch (error) {}
 
         Object.values(connections).forEach((conn) => {
           conn.send(JSON.stringify([newMessage]));
@@ -231,10 +193,8 @@ wsServer.on('connection', async (connection, request) => {
         const { latitude, longitude } = data;
         connection._location = { latitude, longitude, username };
       
-        // ✨ 當有人更新地圖座標時，廣播人數狀態 (更新 Map 人數)
         broadcastSystemStatus();
 
-        // 1. 廣播給其他人
         Object.values(connections).forEach((conn) => {
           if (conn !== connection && conn.readyState === 1) {
             conn.send(
@@ -250,7 +210,6 @@ wsServer.on('connection', async (connection, request) => {
           }
         });
       
-        // 2. 回傳所有其他人的位置給當前用戶
         const others = Object.values(connections)
           .filter((conn) => conn !== connection && conn._location)
           .map((conn) => ({
@@ -267,7 +226,24 @@ wsServer.on('connection', async (connection, request) => {
             })
           );
         }
-      
+        break;
+      }
+
+      // 🌟 新增：當收到前端離開地圖的訊號時，刪除使用者的座標並廣播給其他人
+      case 'USER_LEFT_MAP': {
+        delete connection._location;
+        broadcastSystemStatus(); // 更新地圖探索人數
+        
+        Object.values(connections).forEach((conn) => {
+          if (conn !== connection && conn.readyState === 1) {
+            conn.send(
+              JSON.stringify({
+                type: 'USER_LEFT_MAP',
+                data: { username }
+              })
+            );
+          }
+        });
         break;
       }
 
@@ -277,11 +253,8 @@ wsServer.on('connection', async (connection, request) => {
         const word = GAME_WORDS[Math.floor(Math.random() * GAME_WORDS.length)];
         const player = { id: playerId, name: username, score: 0, isPainter: true };
         
-        // 👇 新增：接收前端傳來的時間設定
         const hasTimeLimit = data.hasTimeLimit || false;
         const timeLimit = data.timeLimit || 60;
-
-        console.log(`🎯 roomId: ${roomId}, TimeLimit: ${hasTimeLimit ? timeLimit + 's' : 'None'}`);
         
         gameRooms[roomId] = {
           players: [player],
@@ -294,7 +267,6 @@ wsServer.on('connection', async (connection, request) => {
         connection._roomId = roomId;
         connection._playerId = playerId;
       
-        // ✅ 新增：发送系统消息到聊天室
         const systemMessage = {
           sender: 'System',
           content: `房间 ${roomId} 已创建，输入 /join ${roomId} 加入游戏`,
@@ -304,11 +276,8 @@ wsServer.on('connection', async (connection, request) => {
       
         try {
           await db.collection('ChatMessages').insertOne(systemMessage);
-        } catch (error) {
-          console.error('❌ Error saving system message:', error);
-        }
+        } catch (error) {}
       
-        // 广播系统消息给所有用户
         Object.values(connections).forEach((conn) => {
           conn.send(JSON.stringify([systemMessage]));
         });
@@ -372,7 +341,6 @@ wsServer.on('connection', async (connection, request) => {
           type: 'GAME_PLAYER_UPDATE',
           data: { players: room.players },
         });
-
         break;
       }
 
@@ -395,7 +363,6 @@ wsServer.on('connection', async (connection, request) => {
         let scoreUpdate = {};
       
         if (isCorrect) {
-          // 更新分数
           const guesser = room.players.find(p => p.id === connection._playerId);
           if (guesser) {
             guesser.score += 100;
@@ -407,11 +374,9 @@ wsServer.on('connection', async (connection, request) => {
             scoreUpdate[painter.id] = painter.score;
           }
       
-          // ✅ 選擇下一輪畫家（簡單輪流）
           const currentPainterIndex = room.players.findIndex(p => p.id === room.painterId);
           const nextPainterIndex = (currentPainterIndex + 1) % room.players.length;
           const nextPainter = room.players[nextPainterIndex];
-          console.log("next painter is",nextPainter);
           
           room.painterId = nextPainter.id;
           room.players.forEach(p => p.isPainter = (p.id === room.painterId));
@@ -439,51 +404,37 @@ wsServer.on('connection', async (connection, request) => {
             correctWord: isCorrect ? room.word : null
           }
         });
-      
         break;
       }
-
-      default:
-        console.log('❓ Unhandled message type:', type);
-        console.log('📦 Full message:', parsed);
     }
   });
 
-  // ✅ Handle disconnect
   connection.on('close', () => {
-    console.log(`❌ ${connection._username} disconnected`);
     const roomId = connection._roomId;
     const playerId = connection._playerId;
 
     if (roomId && gameRooms[roomId]) {
       const room = gameRooms[roomId];
-      
-      // 把斷線的玩家從陣列中移除
       room.players = room.players.filter((player) => player.id !== playerId);
 
       if (room.players.length === 0) {
-        // 房間空了，直接刪除
         delete gameRooms[roomId];
       } else {
-        // ⚠️ 關鍵修復：如果跑掉的是畫家，必須指派新畫家！
         if (room.painterId === playerId) {
-          // 直接把畫筆交給目前陣列裡的第一個人
           room.painterId = room.players[0].id;
           room.players.forEach(p => p.isPainter = (p.id === room.painterId));
           
-          // 廣播新回合開始 (讓新畫家接手)
           broadcastToRoom(roomId, {
             type: 'GAME_NEW_ROUND',
             data: {
               players: room.players,
-              word: room.word, // 題目維持不變或產生新的
+              word: room.word,
               painterId: room.painterId,
               hasTimeLimit: room.hasTimeLimit,
               timeLimit: room.timeLimit
             },
           });
         } else {
-          // 如果跑掉的只是猜題者，單純更新玩家列表就好
           broadcastToRoom(roomId, {
             type: 'GAME_PLAYER_UPDATE',
             data: { players: room.players },
@@ -493,13 +444,10 @@ wsServer.on('connection', async (connection, request) => {
     }
     
     delete connections[uuid]; 
-    
-    // ✨ 有人離開後，再次廣播最新人數
     broadcastSystemStatus();
   });
 });
 
-// ✅ 广播函数
 function broadcastToRoom(roomId, message) {
   Object.values(connections).forEach((conn) => {
     if (conn._roomId === roomId) {
@@ -508,7 +456,6 @@ function broadcastToRoom(roomId, message) {
   });
 }
 
-// ✅ Start Server
 server.listen(PORT, '0.0.0.0',() => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
