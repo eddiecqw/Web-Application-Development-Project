@@ -145,7 +145,6 @@ wsServer.on('connection', async (connection, request) => {
   connections[uuid] = connection;
   connection._username = username;
 
-  // ✨ 修改：初始載入改為最新的 20 條訊息
   try {
     const messages = await db
       .collection('ChatMessages')
@@ -171,7 +170,6 @@ wsServer.on('connection', async (connection, request) => {
 
     switch (type) {
       
-      // ✨ 新增：處理索取更多歷史訊息的請求
       case 'LOAD_MORE_MESSAGES': {
         const skip = data.skip || 0;
         const limit = data.limit || 50;
@@ -201,6 +199,8 @@ wsServer.on('connection', async (connection, request) => {
           type: data.type || 'text',
           mimeType: data.mimeType || null,
           filename: data.filename || null,
+          // ✨ 關鍵修復：接住前端傳來的回覆資訊，並存進 MongoDB
+          replyTo: data.replyTo || null, 
         };
 
         try {
