@@ -26,9 +26,10 @@ export function Home({ username ,onLogout}) {
   const isAtBottomRef = useRef(true); 
   const fileInputRef = useRef(null); 
 
-  // ✨ 新增：用於完美處理歷史訊息滾動的 Refs
+  // 用於完美處理歷史訊息與新訊息滾動的 Refs
   const isLoadingMoreRef = useRef(false);
   const scrollDistanceToBottomRef = useRef(0);
+  const forceScrollRef = useRef(false); // 🌟 新增：標記是否需要強制滾動到底部
 
   const { getWebSocket } = useWebSocket(WS_URL, {
     share: true,
@@ -43,10 +44,16 @@ export function Home({ username ,onLogout}) {
     navigate('/login', { replace: true });
   };
 
+  // 🌟 修復 1：改用直接控制父容器的 scrollTo，這在手機端更為穩定
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    setUnreadCount(0);
-    isAtBottomRef.current = true;
+    if (chatBoxRef.current) {
+      chatBoxRef.current.scrollTo({
+        top: chatBoxRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+      setUnreadCount(0);
+      isAtBottomRef.current = true;
+    }
   };
 
   const handleScroll = () => {
@@ -61,13 +68,11 @@ export function Home({ username ,onLogout}) {
     }
   };
 
-  // ✨ 關鍵修復：載入更多訊息的函數
   const loadMoreMessages = () => {
     if (isLoadingHistory || !hasMore) return;
     setIsLoadingHistory(true);
-    isLoadingMoreRef.current = true; // 標記目前正在進行「歷史載入」
+    isLoadingMoreRef.current = true;
 
-    // 紀錄當下捲軸距離「最底部」有多遠
     if (chatBoxRef.current) {
       scrollDistanceToBottomRef.current = chatBoxRef.current.scrollHeight - chatBoxRef.current.scrollTop;
     }
@@ -97,8 +102,9 @@ export function Home({ username ,onLogout}) {
           const isInitialLoad = prev.length === 0;
           const hasMyMessage = validMessages.some(m => m.sender === username);
 
+          // 🌟 修復 2：不要用 setTimeout，而是立起「需要滾動」的旗幟 (Ref)
           if (isInitialLoad || isAtBottomRef.current || hasMyMessage) {
-            setTimeout(scrollToBottom, 100);
+            forceScrollRef.current = true;
           } else {
             setUnreadCount(c => c + validMessages.length);
           }
@@ -114,17 +120,25 @@ export function Home({ username ,onLogout}) {
         if (historyMsgs.length < 50) setHasMore(false);
       } else {
         setHasMore(false);
-        isLoadingMoreRef.current = false; // 如果沒資料了，取消標記
+        isLoadingMoreRef.current = false;
       }
     }
   }, [lastJsonMessage, username]);
 
-  // ✨ 關鍵修復：當 React 更新了 messages 狀態，我們利用 useLayoutEffect 在畫面重繪前「瞬間」修正捲軸位置
+  // 🌟 修復 3：單獨監聽 messages 的變化。確保 React 把畫面畫完後，瞬間將畫面捲動到底部
+  useEffect(() => {
+    if (forceScrollRef.current) {
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
+      forceScrollRef.current = false;
+    }
+  }, [messages]);
+
   useLayoutEffect(() => {
     if (isLoadingMoreRef.current && chatBoxRef.current) {
-      // 用新的總高度，減去之前紀錄的底部距離，就能完美回到同一句話！
       chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight - scrollDistanceToBottomRef.current;
-      isLoadingMoreRef.current = false; // 歸位完畢，解除標記
+      isLoadingMoreRef.current = false; 
     }
   }, [messages]);
 
@@ -143,7 +157,7 @@ export function Home({ username ,onLogout}) {
     });
     setMessage('');
     setReplyingTo(null);
-    scrollToBottom(); 
+    forceScrollRef.current = true; // 送出時標記強制滾動
   };
 
   const sendFile = (event) => {
@@ -173,7 +187,7 @@ export function Home({ username ,onLogout}) {
         },
       });
       setReplyingTo(null);
-      scrollToBottom();
+      forceScrollRef.current = true; // 送出時標記強制滾動
     };
     reader.readAsDataURL(file);
   };
