@@ -163,14 +163,35 @@ export function Home({ username ,onLogout}) {
           <Link to="/draw-guess"><button className="nav-button">🎨 Start Drawing Game</button></Link>
         </div>
   
-        <div className="chat-box">
+        <div className="chat-box" style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '10px' }}>
           {messages.map((msg, index) => (
-            <div key={index} className="chat-message">
-              <strong>{msg.sender}:</strong>
-              {renderContent(msg)}
-              <span className="timestamp">
-                {new Date(msg.timestamp).toLocaleTimeString()}
-              </span>
+            <div key={index} className="chat-message" style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              background: 'rgba(255, 255, 255, 0.85)', 
+              padding: '10px 15px', 
+              borderRadius: '12px',
+              boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+              alignSelf: 'flex-start',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}>
+              {/* 發送者名稱 (上方) - 加入 break-all 防止超長 Email 撐爆畫面 */}
+              <div style={{ fontSize: '0.8rem', color: '#666', marginBottom: '6px', wordBreak: 'break-all' }}>
+                <strong>{msg.sender}</strong>
+              </div>
+              
+              {/* 訊息內容與時間 (下方) */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '15px' }}>
+                {/* 訊息本體 - 加入 break-word 確保長字串正常換行 */}
+                <div style={{ wordBreak: 'break-word', fontSize: '1rem', color: '#222', flex: 1 }}>
+                  {renderContent(msg)}
+                </div>
+                {/* 時間戳記 - 加入 whiteSpace: 'nowrap' 確保時間永遠不會被切斷成兩行 */}
+                <span className="timestamp" style={{ fontSize: '0.75rem', color: '#999', whiteSpace: 'nowrap' }}>
+                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
             </div>
           ))}
           {/* ✨ 新增：自動滾動的隱形目標錨點 */}
