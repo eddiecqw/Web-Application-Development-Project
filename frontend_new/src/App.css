@@ -475,11 +475,14 @@
     padding: 10px !important; 
   }
 
+  /* 1. 確保外層 wrapper 真正填滿螢幕，並使用 flex 佈局 */
   .content-wrapper {
-    margin: 10px 0 !important;   /* 移除左右 margin，避免撐破螢幕 */
-    padding: 15px 10px !important; /* 縮小手機版內邊距 */
+    margin: 10px 0 !important;   
+    padding: 15px 10px !important; 
     width: 100% !important;
     height: calc(100vh - 20px) !important;
+    display: flex !important;           /* 🌟 確保使用 flex */
+    flex-direction: column !important;  /* 🌟 垂直排列 */
   }
 
   .chat-container {
@@ -487,13 +490,20 @@
     padding: 0 !important;
   }
   
+  /* 2. 讓聊天區域 (chat-box) 強制佔用所有剩餘空間 */
   .chat-box {
-    height: auto !important;
-    flex: 1 !important;
+    /* 移除寫死的 height: 380px (如果你有的話) */
+    flex: 1 1 auto !important;          /* 🌟 這是關鍵！讓它彈性生長 */
+    min-height: 200px !important;       /* 給它一個最小高度保底 */
     width: 100% !important;
     padding: 10px !important;
   }
-
+  /* 3. 縮小底部按鈕的留白，把空間還給聊天區 */
+  .buttonContainer {
+    height: auto !important;            /* 🌟 移除原本可能寫死的 260px 高度 */
+    margin-top: 10px !important;        /* 縮小上方間距 */
+    padding-bottom: 10px !important;
+  }
   /* 4. 聊天輸入框優化 */
   .chat-input {
     flex-direction: column;
