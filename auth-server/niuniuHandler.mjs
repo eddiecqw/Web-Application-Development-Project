@@ -88,22 +88,26 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
 
   switch (type) {
     case 'NIUNIU_CREATE_ROOM': {
-      // ✨ 新增：在開新房間前，先刪除這個玩家以前開過的舊房間
+      // 1. 先清理舊房間
       for (const id in niuniuRooms) {
         if (niuniuRooms[id].owner === username) delete niuniuRooms[id];
       }
-      ws._niuniuRoomId = newRoomId;
-      // 產生 6 碼隨機房號
-      const newRoomId = Math.random().toString(36).substring(2, 8);
-      const timeLimit = data.timeLimit || 60; // 取得前端傳來的時間限制，預設 60 秒
 
+      // 2. 🌟 關鍵修復：必須先「宣告並產生」 newRoomId 與 timeLimit
+      const newRoomId = Math.random().toString(36).substring(2, 8);
+      const timeLimit = data.timeLimit || 60;
+
+      // 3. 🌟 等 newRoomId 產生後，才能把它綁定到 ws 身上
+      ws._niuniuRoomId = newRoomId;
+
+      // 4. 建立房間資料
       niuniuRooms[newRoomId] = {
         id: newRoomId,
         owner: username,
         players: [{ name: username, isReady: false, hand: [], result: null }],
-        status: 'waiting', // waiting, playing, showdown
+        status: 'waiting', 
         timeLimit: timeLimit,
-        dealer: username // 預設房主為庄家
+        dealer: username 
       };
 
       ws.send(JSON.stringify({
@@ -111,6 +115,7 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
         data: { roomId: newRoomId, room: niuniuRooms[newRoomId] }
       }));
 
+      // 5. 呼叫回調通知聊天室
       if (callbacks && callbacks.onRoomCreated) {
         callbacks.onRoomCreated(newRoomId);
       }
