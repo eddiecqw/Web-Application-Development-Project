@@ -11,6 +11,9 @@ export default function DrawGuessPage({ user }) {
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   
+  // ✨ 新增：用來鎖定聊天框，實現內部安全滾動的 Ref
+  const chatBoxRef = useRef(null);
+  
   const [brushColor, setBrushColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(5);
   const presetColors = ['#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF9900', '#9900FF'];
@@ -18,7 +21,6 @@ export default function DrawGuessPage({ user }) {
   const [timeLeft, setTimeLeft] = useState(null);
   const [isTimerActive, setIsTimerActive] = useState(false);
 
-  // 🎵 音效與 BGM 狀態管理
   const [isMuted, setIsMuted] = useState(false);
   const correctSound = useRef(new Audio('/success.mp3')); 
   const bgmSound = useRef(new Audio('/The_Carousel_Clock.mp3'));         
@@ -36,7 +38,7 @@ export default function DrawGuessPage({ user }) {
     joinRoom,
     sendDrawData,
     submitGuess,
-    leaveRoom, // ✨ 修改 1：把我們新寫的 leaveRoom 從 Hook 中拿出來
+    leaveRoom, 
     gameState: { roomId, players, isPainter, playerId, currentWord },
   } = useGameSocket(wsUrl, {
     DRAW_DATA_RECEIVED: (data) => {
@@ -61,7 +63,7 @@ export default function DrawGuessPage({ user }) {
       }
       setMessages(prev => [...prev, {
         ...data,
-        text: data.isCorrect ? `🎉 猜中了！正确答案：${data.correctWord}` : `❌ 猜错了，继续努力！`
+        text: data.isCorrect ? `🎉 猜中了！正確答案：${data.guess}` : `❌ 猜錯了，繼續努力！`
       }]);
     },
     GAME_NEW_ROUND: (data) => {
@@ -74,6 +76,14 @@ export default function DrawGuessPage({ user }) {
       }
     }
   });
+
+  // ✨ 關鍵修復：安全自動滾動機制
+  // 當 messages 更新時，只讓 chatBoxRef 內部滾動到底部，絕對不影響外層網頁
+  useEffect(() => {
+    if (chatBoxRef.current) {
+      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (roomId && !isMuted) {
@@ -105,11 +115,10 @@ export default function DrawGuessPage({ user }) {
   const handleSubmitGuess = (guess) => submitGuess(guess);
 
   const handleLeaveGame = () => {
-    // ✨ 修改 2：更新提示文字，並呼叫 leaveRoom() 徹底清除房間紀錄
     const isConfirmed = window.confirm("⚠️ 確定要主動離開遊戲嗎？\n\n主動返回聊天室將會清除您當前的房間紀錄與分數！\n(若是意外刷新網頁，分數會自動保留)");
     if (isConfirmed) {
       bgmSound.current.pause();
-      leaveRoom(); // 👈 關鍵呼叫：清除 sessionStorage 裡的 roomId
+      leaveRoom(); 
       navigate('/');
     }
   };
@@ -240,15 +249,81 @@ export default function DrawGuessPage({ user }) {
           
           <div className="w-full md:w-1/3 p-4">
             <PlayerList players={players} currentUserId={playerId} />
-            <div className="mt-4">
-              <h4 className="font-bold">猜詞紀錄：</h4>
-              <ul className="text-sm">
-                {messages.map((msg, idx) => (
-                  <li key={idx}>
-                    🗣️ <strong>{msg.playerName}</strong> 猜：「{msg.guess}」
-                  </li>
-                ))}
-              </ul>
+            
+            {/* ✨ 替換為聊天室風格的猜詞紀錄區塊 */}
+            <div className="mt-4" style={{ display: 'flex', flexDirection: 'column' }}>
+              <h4 className="font-bold mb-2">💬 聊天與猜詞動態：</h4>
+              
+              <div 
+                ref={chatBoxRef}
+                style={{ 
+                  height: '350px',            // 設定固定高度
+                  overflowY: 'auto',          // 允許內部滾動
+                  backgroundColor: '#f8f9fa', 
+                  borderRadius: '8px', 
+                  padding: '12px',
+                  border: '1px solid #e5e7eb',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                {messages.length === 0 && (
+                  <div style={{ textAlign: 'center', color: '#999', fontSize: '0.85rem', marginTop: '20px' }}>
+                    尚未有紀錄，趕快輸入答案吧！
+                  </div>
+                )}
+                
+                {messages.map((msg, idx) => {
+                  const isSystem = msg.playerName === 'System';
+                  // 判斷是否為自己的訊息
+                  const isOwnMessage = msg.playerName === user.email;
+
+                  // 系統提示訊息置中
+                  if (isSystem) {
+                    return (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'center', width: '100%', margin: '4px 0' }}>
+                        <div style={{ background: 'rgba(0,0,0,0.08)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.75rem', color: '#555' }}>
+                          🔔 {msg.guess}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // 玩家對話/猜詞氣泡
+                  return (
+                    <div key={idx} style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      alignItems: isOwnMessage ? 'flex-end' : 'flex-start',
+                      width: '100%'
+                    }}>
+                      {/* 玩家名字 */}
+                      <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: '2px', padding: '0 4px' }}>
+                        {msg.playerName}
+                      </div>
+                      
+                      {/* 訊息氣泡本體 */}
+                      <div style={{
+                        padding: '8px 12px',
+                        borderRadius: isOwnMessage ? '15px 4px 15px 15px' : '4px 15px 15px 15px',
+                        // 如果猜中顯示高亮綠色，沒猜中則區分是不是自己發的顏色
+                        backgroundColor: msg.isCorrect ? '#dcfce7' : (isOwnMessage ? '#95ec69' : '#ffffff'),
+                        color: msg.isCorrect ? '#166534' : '#333',
+                        border: msg.isCorrect ? '1px solid #bbf7d0' : '1px solid #e5e7eb',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                        maxWidth: '90%',
+                        wordBreak: 'break-word',
+                        fontSize: '0.9rem',
+                        fontWeight: msg.isCorrect ? 'bold' : 'normal'
+                      }}>
+                        {/* 如果猜對了，顯示系統給的 text (例如: 🎉 猜中了！...)，如果是平時猜測/聊天，就顯示玩家輸入的文字 */}
+                        {msg.isCorrect ? msg.text : msg.guess}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
