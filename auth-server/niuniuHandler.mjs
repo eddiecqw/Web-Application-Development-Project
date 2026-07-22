@@ -1,7 +1,7 @@
 // niuniuHandler.mjs
 
 // 儲存所有鬥牛房間的狀態
-const niuniuRooms = {};
+export const niuniuRooms = {};
 
 // ==========================================
 // 1. 核心演算法：洗牌與牌型判斷
@@ -105,6 +105,10 @@ export function handleNiuNiuMessage(ws, type, data, wss) {
         type: 'NIUNIU_ROOM_CREATED',
         data: { roomId: newRoomId, room: niuniuRooms[newRoomId] }
       }));
+
+      if (callbacks && callbacks.onRoomCreated) {
+        callbacks.onRoomCreated(newRoomId);
+      }
       break;
     }
 
