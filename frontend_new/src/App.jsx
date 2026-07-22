@@ -4,6 +4,7 @@ import {Cursor} from './components/Cursor';
 import { Login } from './components/Login';
 import Register from './components/Register';
 import DrawGuessPage from './pages/DrawGuessPage';
+import NiuNiuPage from './pages/NiuNiuPage';
 import { Home } from './components/ChatRoom'; 
 import MapComponent from './components/MapComponent';
 import './App.css';
@@ -30,10 +31,7 @@ const App = () => {
           path="/" 
           element={user ? <Home username={user.email} onLogout={() => setUser(null)} /> : <Navigate to="/login" replace />} 
         />
-        <Route 
-          path="/cursor" 
-          element={user ? <Cursor /> : <Navigate to="/login" replace />} 
-        />
+        <Route element={user ? <NiuNiuPage user={user} /> : <Navigate to="/login" />} path="/niuniu" />
         <Route 
           path="/map" 
           element={user ? <MapComponent /> : <Navigate to="/login" replace />} 
