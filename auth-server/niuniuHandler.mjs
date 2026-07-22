@@ -172,7 +172,7 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
         
         broadcastToRoom(roomId, {
           type: 'NIUNIU_PLAYER_SUBMITTED',
-          data: { username: player.name, allReady }
+          data: { username: player.name, allReady, room } 
         });
 
         // 如果全部提交完畢，進入攤牌階段
