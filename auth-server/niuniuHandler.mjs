@@ -124,20 +124,26 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
 
     case 'NIUNIU_JOIN_ROOM': {
       const room = niuniuRooms[roomId];
-      ws._niuniuRoomId = roomId;
-      if (!room.players.some(p => p.name === username)) {
+      
+      // 1. 先確認房間到底存不存在
+      if (!room) {
         return ws.send(JSON.stringify({ type: 'NIUNIU_ERROR', data: { message: '房間不存在' } }));
       }
+      
+      // 2. 確認存在後，再把房間 ID 綁定到連線上
+      ws._niuniuRoomId = roomId;
+
+      // 3. 確認房間狀態是否允許加入
       if (room.status !== 'waiting') {
         return ws.send(JSON.stringify({ type: 'NIUNIU_ERROR', data: { message: '遊戲已經開始，無法加入' } }));
       }
 
-      // 檢查是否已在房間內
+      // 4. 檢查玩家是否已經在房間內，不在的話就把他加進去
       if (!room.players.some(p => p.name === username)) {
         room.players.push({ name: username, isReady: false, hand: [], result: null });
       }
 
-      // 廣播給房間所有人：有新玩家加入
+      // 5. 廣播給房間所有人：有新玩家加入
       broadcastToRoom(roomId, {
         type: 'NIUNIU_PLAYER_JOINED',
         data: { room }
