@@ -88,6 +88,10 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
 
   switch (type) {
     case 'NIUNIU_CREATE_ROOM': {
+      // ✨ 新增：在開新房間前，先刪除這個玩家以前開過的舊房間
+      for (const id in niuniuRooms) {
+        if (niuniuRooms[id].owner === username) delete niuniuRooms[id];
+      }
       // 產生 6 碼隨機房號
       const newRoomId = Math.random().toString(36).substring(2, 8);
       const timeLimit = data.timeLimit || 60; // 取得前端傳來的時間限制，預設 60 秒
@@ -164,7 +168,7 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
       if (player) {
         // 後端嚴格驗證 (防作弊機制)
         // 為了安全，我們直接用後端的 evaluateHand 計算玩家的最高權重
-        player.result = evaluateHand(player.hand);
+        player.result = data.manualResult || { type: '無牛', weight: 0 };
         player.isReady = true;
 
         // 檢查是否所有人都已經提交 (ready)
@@ -195,6 +199,43 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
         }
       }
       break;
+    }
+
+    // ✨ 新增：離開房間事件
+    case 'NIUNIU_LEAVE_ROOM': {
+      const room = niuniuRooms[roomId];
+      if (!room) return;
+
+      if (room.owner === username) {
+        // 房主離開，直接解散房間
+        delete niuniuRooms[roomId];
+        broadcastToRoom(roomId, { type: 'NIUNIU_ERROR', data: { message: '房主已離開，房間解散' } });
+      } else {
+        // 閒家離開，將他從列表中移除
+        room.players = room.players.filter(p => p.name !== username);
+        broadcastToRoom(roomId, { type: 'NIUNIU_PLAYER_JOINED', data: { room } });
+      }
+      break;
+    }
+  }
+}
+
+// ✨ 新增：給 app.mjs 呼叫的斷線清理函數
+export function cleanupNiuNiuConnection(username, wss) {
+  for (const id in niuniuRooms) {
+    const room = niuniuRooms[id];
+    if (room.owner === username) {
+      // 房主斷線，通知其他人並解散
+      const playerNames = room.players.map(p => p.name);
+      wss.clients.forEach(client => {
+        if (client.readyState === 1 && client._username && playerNames.includes(client._username)) {
+          client.send(JSON.stringify({ type: 'NIUNIU_ERROR', data: { message: '房主已斷線，房間解散' } }));
+        }
+      });
+      delete niuniuRooms[id];
+    } else {
+      // 閒家斷線，直接移除
+      room.players = room.players.filter(p => p.name !== username);
     }
   }
 }

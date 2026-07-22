@@ -1,6 +1,7 @@
 import express from 'express';
 import { WebSocketServer } from 'ws';
-import { handleNiuNiuMessage, niuniuRooms } from './niuniuHandler.mjs';
+// ✨ 將 cleanupNiuNiuConnection 也引入進來
+import { handleNiuNiuMessage, niuniuRooms, cleanupNiuNiuConnection } from './niuniuHandler.mjs';
 import cors from 'cors';
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
@@ -480,6 +481,9 @@ wsServer.on('connection', async (connection, request) => {
   });
 
   connection.on('close', () => {
+    if (connection._username) {
+    cleanupNiuNiuConnection(connection._username, wsServer);
+    }
     const roomId = connection._roomId;
     const playerId = connection._playerId;
 
