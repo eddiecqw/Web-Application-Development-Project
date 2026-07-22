@@ -1,6 +1,6 @@
 import express from 'express';
 import { WebSocketServer } from 'ws';
-import { handleNiuNiuMessage } from './niuniuHandler.mjs';
+import { handleNiuNiuMessage, niuniuRooms } from './niuniuHandler.mjs';
 import cors from 'cors';
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
@@ -110,6 +110,22 @@ app.get('/api/rooms', (req, res) => {
   }
 });
 
+//新增牛牛專屬apiget
+app.get('/api/niuniu-rooms', (req, res) => {
+  try {
+    const rooms = Object.values(niuniuRooms).map(room => ({
+      roomId: room.id,
+      playerCount: room.players.length,
+      timeLimit: room.timeLimit,
+      status: room.status,
+      owner: room.owner
+    }));
+    res.json({ success: true, rooms });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 function broadcastSystemStatus() {
   const totalOnline = Object.keys(connections).length;
   const mapUsers = Object.values(connections).filter(conn => conn._location).length;
@@ -170,9 +186,29 @@ wsServer.on('connection', async (connection, request) => {
     const { type, data } = parsed;
     if (type && type.startsWith('NIUNIU_')) {
       data.username = connection._username || data.username; 
-      
-      handleNiuNiuMessage(connection, type, data, wsServer);
-      return;
+
+      // ✨ 定義回調函數，當房間建立時寫入 MongoDB 並廣播聊天室
+      const callbacks = {
+        onRoomCreated: async (newRoomId) => {
+          const systemMessage = {
+            sender: 'System',
+            content: `🃏 撲克鬥牛房間 [${newRoomId}] 已創建，快來加入挑戰吧！`,
+            timestamp: new Date(),
+            type: 'system'
+          };
+          try {
+            await db.collection('ChatMessages').insertOne(systemMessage);
+          } catch (error) {}
+
+          Object.values(connections).forEach((conn) => {
+            if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage]));
+          });
+        }
+      };
+
+      // ✨ 將 callbacks 傳給 handler
+      handleNiuNiuMessage(connection, type, data, wsServer, callbacks);
+      return; 
     }
     switch (type) {
       
