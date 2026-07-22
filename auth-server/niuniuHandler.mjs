@@ -66,7 +66,7 @@ function evaluateHand(hand) {
 // ==========================================
 // 2. 路由處理器 (導流所有鬥牛相關的 WebSocket 請求)
 // ==========================================
-export function handleNiuNiuMessage(ws, type, data, wss) {
+export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
   const { roomId, username } = data;
 
   // 廣播函數：只傳送給同一個房間的玩家
