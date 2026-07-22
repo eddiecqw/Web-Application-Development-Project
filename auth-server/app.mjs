@@ -19,7 +19,7 @@ const client = new MongoClient(uri, {
 const app = express();
 app.use(
   cors({
-    origin: ['http://localhost:5173','https://web-application-development-project-rfmutz8st.vercel.app',/^https:\/\/web-application-development-project.*\.vercel\.app$/],
+    origin: ['https://localhost:5173','https://web-application-development-project-rfmutz8st.vercel.app',/^https:\/\/web-application-development-project.*\.vercel\.app$/],
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type'],
   })
