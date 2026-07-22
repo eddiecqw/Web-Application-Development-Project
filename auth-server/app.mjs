@@ -482,7 +482,7 @@ wsServer.on('connection', async (connection, request) => {
 
   connection.on('close', () => {
     if (connection._username) {
-    cleanupNiuNiuConnection(connection._username, wsServer);
+      cleanupNiuNiuConnection(connection._username, connection._niuniuRoomId, wsServer);
     }
     const roomId = connection._roomId;
     const playerId = connection._playerId;

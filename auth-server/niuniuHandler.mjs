@@ -92,6 +92,7 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
       for (const id in niuniuRooms) {
         if (niuniuRooms[id].owner === username) delete niuniuRooms[id];
       }
+      ws._niuniuRoomId = newRoomId;
       // 產生 6 碼隨機房號
       const newRoomId = Math.random().toString(36).substring(2, 8);
       const timeLimit = data.timeLimit || 60; // 取得前端傳來的時間限制，預設 60 秒
@@ -118,7 +119,8 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
 
     case 'NIUNIU_JOIN_ROOM': {
       const room = niuniuRooms[roomId];
-      if (!room) {
+      ws._niuniuRoomId = roomId;
+      if (!room.players.some(p => p.name === username)) {
         return ws.send(JSON.stringify({ type: 'NIUNIU_ERROR', data: { message: '房間不存在' } }));
       }
       if (room.status !== 'waiting') {
@@ -204,6 +206,7 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
     // ✨ 新增：離開房間事件
     case 'NIUNIU_LEAVE_ROOM': {
       const room = niuniuRooms[roomId];
+      delete ws._niuniuRoomId;
       if (!room) return;
 
       if (room.owner === username) {
@@ -220,22 +223,32 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
   }
 }
 
-// ✨ 新增：給 app.mjs 呼叫的斷線清理函數
-export function cleanupNiuNiuConnection(username, wss) {
-  for (const id in niuniuRooms) {
-    const room = niuniuRooms[id];
-    if (room.owner === username) {
-      // 房主斷線，通知其他人並解散
-      const playerNames = room.players.map(p => p.name);
-      wss.clients.forEach(client => {
-        if (client.readyState === 1 && client._username && playerNames.includes(client._username)) {
-          client.send(JSON.stringify({ type: 'NIUNIU_ERROR', data: { message: '房主已斷線，房間解散' } }));
-        }
-      });
-      delete niuniuRooms[id];
-    } else {
-      // 閒家斷線，直接移除
-      room.players = room.players.filter(p => p.name !== username);
-    }
+// ✨ 修改清理函數，接收 roomId 參數，只清理該連線確實存在的房間
+export function cleanupNiuNiuConnection(username, roomId, wss) {
+  if (!roomId) return; // 如果這條斷開的連線根本沒進房間（例如聊天室舊連線），就直接忽略！
+
+  const room = niuniuRooms[roomId];
+  if (!room) return;
+
+  if (room.owner === username) {
+    // 房主斷線，通知其他人並解散
+    const playerNames = room.players.map(p => p.name);
+    wss.clients.forEach(client => {
+      if (client.readyState === 1 && client._username && playerNames.includes(client._username)) {
+        client.send(JSON.stringify({ type: 'NIUNIU_ERROR', data: { message: '房主已斷線，房間解散' } }));
+      }
+    });
+    delete niuniuRooms[roomId];
+  } else {
+    // 閒家斷線，直接移除
+    room.players = room.players.filter(p => p.name !== username);
+    
+    // 廣播給其他人他離開了，更新房間狀態
+    const playerNames = room.players.map(p => p.name);
+    wss.clients.forEach(client => {
+      if (client.readyState === 1 && client._username && playerNames.includes(client._username)) {
+        client.send(JSON.stringify({ type: 'NIUNIU_PLAYER_JOINED', data: { room } }));
+      }
+    });
   }
 }
