@@ -236,7 +236,7 @@ export function Home({ username ,onLogout}) {
         
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', margin: '15px 0' }}>
           
-          <Link to="/map"><button className="nav-button">View Map</button></Link>
+          <Link to="/map"><button className="nav-button">🌏 View Map</button></Link>
           <Link to="/draw-guess"><button className="nav-button">🎨 Start Drawing Game</button></Link>
         </div>
   

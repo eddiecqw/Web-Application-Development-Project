@@ -1,5 +1,6 @@
 import express from 'express';
 import { WebSocketServer } from 'ws';
+import { handleNiuNiuMessage } from './niuniuHandler.mjs';
 import cors from 'cors';
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
@@ -167,7 +168,12 @@ wsServer.on('connection', async (connection, request) => {
     }
 
     const { type, data } = parsed;
-
+    if (type && type.startsWith('NIUNIU_')) {
+      data.username = connection._username || data.username; 
+      
+      handleNiuNiuMessage(connection, type, data, wsServer);
+      return;
+    }
     switch (type) {
       
       case 'LOAD_MORE_MESSAGES': {
