@@ -35,6 +35,10 @@ export default function useNiuNiuSocket(url, eventHandlers = {}) {
         console.log('📦 NiuNiu 收到事件:', type); 
 
         switch (type) {
+          // ✨ 關鍵修復：給表情事件獨立的區塊，並加上 break; 絕對不能往下穿透！
+          case 'NIUNIU_SHOW_EMOJI':
+            handlersRef.current[type]?.(data);
+            break;
           case 'NIUNIU_ROOM_CREATED':
           case 'NIUNIU_PLAYER_JOINED':
           case 'NIUNIU_GAME_STARTED':
@@ -85,15 +89,15 @@ export default function useNiuNiuSocket(url, eventHandlers = {}) {
     const safeData = (payload && !payload.nativeEvent) ? payload : {};
     send('NIUNIU_SUBMIT_HAND', { roomId, ...safeData });
   }, [send, roomId]);
-  
+  // ✨ 新增：發送表情的函數
+  const sendEmoji = useCallback((emoji) => send('NIUNIU_SEND_EMOJI', { roomId, emoji }), [send, roomId]);
   const leaveRoom = useCallback(() => {
     sessionStorage.removeItem('niuniuRoomId');
     setRoomId(null);
     setRoomData(null);
   }, []);
-
   return {
-    send, createRoom, joinRoom, startGame, submitHand, leaveRoom,
+    send, createRoom, joinRoom, startGame, submitHand, leaveRoom, sendEmoji,
     gameState: { roomId, roomData },
   };
 }
