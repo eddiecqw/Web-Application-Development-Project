@@ -263,7 +263,19 @@ export function handleBlackjackMessage(ws, type, data, wss, callbacks) {
     }
 
     case 'BJ_SEND_EMOJI': {
-      broadcastToRoom(roomId, 'BJ_SHOW_EMOJI');
+      const room = blackjackRooms[roomId];
+      if (!room) return;
+      
+      // 繞過預設的廣播機制，自訂表情的專屬封包
+      const playerNames = room.players.map(p => p.name);
+      wss.clients.forEach(client => {
+        if (client.readyState === 1 && client._username && playerNames.includes(client._username)) {
+          client.send(JSON.stringify({
+            type: 'BJ_SHOW_EMOJI',
+            data: { username: username, emoji: data.emoji } // ✨ 確保名字跟表情確實送出
+          }));
+        }
+      });
       break;
     }
 
