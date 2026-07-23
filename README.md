@@ -1,151 +1,150 @@
-# Web-Application-Development-Project
-This is a project about **Web design** conbined the features of **online registration** and **login system**, **multimedia sharing** based chatroom, **online location sharing map** function and **sharing white board function**.\
-In terms of frontend, I used **React/vite** to construct the user-frendly web UI. In addtion, in backend system, I used **NoSQL** document database **MongoDB** and **node.js** to showcases a full-featured real-time application with authentication, real-time communication, game mechanics, and database integration - all built with modern JavaScript technologies.
+# 🎮 Web Multi-Game Platform | 網頁即時多人遊戲平台
 
-## 🛠 Technology Stack
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)](https://vitejs.dev/)
+[![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![WebSocket](https://img.shields.io/badge/WebSocket-010101?style=for-the-badge&logo=socket.io&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
+[![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 
-### Backend
-- **Node.js** - JavaScript runtime for server-side execution
-- **Express.js** - Web framework for REST API endpoints
-- **WebSocket (ws)** - Real-time bidirectional communication
-- **MongoDB** - NoSQL database for data persistence
-- **bcrypt** - Password hashing for secure authentication
+[English](#english) | [繁體中文](#繁體中文)
 
-### Frontend (Companion Project)
-- **React** - Component-based UI library
-- **Vite** - Fast build tool and development server
-- **npm** - Package manager for dependency management
+---
 
-### Real-time Features
-- Instant messaging with multimedia support
-- Live geolocation sharing between users
-- Multiplayer drawing game with synchronized canvas
-- Dynamic game room management with turn-based gameplay
+<a name="english"></a>
 
-## 💡How I handle Multimedia File Transmission
-```javascript
-case 'CHAT_MESSAGE': {
-  const newMessage = {
-    sender: username,
-    content: data.content,          // File content (likely base64 encoded)
-    timestamp: new Date(),
-    type: data.type || 'text',      // Could be 'image', 'audio', 'video'
-    mimeType: data.mimeType || null, // e.g., 'image/jpeg', 'audio/mp3'
-    filename: data.filename || null,  // Original filename
-  };
-  
-  await db.collection('ChatMessages').insertOne(newMessage);
-  
-  // Broadcast to all connected clients
-  Object.values(connections).forEach((conn) => {
-    conn.send(JSON.stringify([newMessage]));
-  });
-}
+## 🇬🇧 English
+
+### 📖 About The Project
+
+This is a full-stack, real-time multiplayer web application. It features a centralized lobby with a global chatroom, a live user location map, and fully synchronized multiplayer game rooms. The platform currently hosts two main games: **Draw & Guess** and **NiuNiu Poker (鬥牛)**, all powered by a robust native WebSocket architecture.
+
+### ✨ Key Features
+
+* **🔐 Authentication System:** Secure user registration and login using encrypted passwords (`bcrypt`).
+* **💬 Global Hub & Live Map:** Real-time global chat with message history, and a dynamic map showing live locations of online users.
+* **🎨 Draw & Guess (你畫我猜):**
+  * Real-time canvas synchronization.
+  * Automated turn-based painter rotation and vocabulary generation.
+  * Live guess validation and automatic scoring.
+* **🃏 NiuNiu Poker (撲克鬥牛):**
+  * **Advanced Room Management:** Create/Join rooms with custom time limits. Built-in prevention of duplicate and ghost rooms.
+  * **Smart Evaluation Engine:** Backend-driven card evaluation and weight calculation to prevent client-side manipulation.
+  * **Chip & Betting System:** Real-time chip calculation with dynamic multipliers (e.g., 5x for 5-Flower Niu, 4x for NiuNiu).
+  * **Interactive UI:** Live Emoji reaction system with floating chat bubbles, detailed rule popups, and smooth victory/loss animations.
+
+### 🛠 Tech Stack
+
+* **Frontend:** React.js, Vite, React Router, `react-use-websocket`
+* **Backend:** Node.js, Express.js, `ws` (Native WebSockets)
+* **Database:** MongoDB
+* **Deployment:** Vercel (Frontend) / Render (Backend)
+
+### 🚀 Getting Started
+
+#### Prerequisites
+
+* Node.js (v16 or higher)
+* MongoDB Cluster (URI)
+
+#### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone [https://github.com/eddiecqw/Web-Application-Development-Project.git](https://github.com/eddiecqw/Web-Application-Development-Project.git)
+   ```
+
+* Install dependencies for Backend:
+  ```bash
+  cd backend 
+  npm install
+  ```
+* Install dependencies for Frontend:
+  ```bash
+  cd frontend 
+  npm install
+  ```
+* Environment Variables Setup:
+  * Create a `.env` file in the backend directory:
+    ```
+    MONGODB\_URI=your\_mongodb\_connection\_string
+    PORT=53840
+    ```
+  * Create a `.env` file in the frontend directory:
+    ```
+    VITE\_WS\_URL=ws://localhost:53840/ws
+    ```
+* Run the application (Development Mode):
+  * Backend: `node app.mjs`
+  * Frontend: `npm run dev`
+
+<a name="繁體中文"></a>
+
+## 🇹🇼 繁體中文
+
+### 📖專案簡介
+
+這是一個全端開發的即時多人連線網頁應用程式。平台擁有一個結合了全球聊天室與即時用戶位置地圖的遊戲大廳，並提供完全同步的多人遊戲房間。目前平台搭載了兩款核心遊戲： ****你畫我猜 (Draw & Guess)**** and **撲克鬥牛 (NiuNiu Poker)**, all powered by a robust native WebSocket architecture.
+
+### ✨ 核心功能
+
+* **🔐 帳號安全系統:** 具備完整的註冊與登入功能，密碼採用 `bcrypt` 加密儲存。
+* **💬 大廳交誼廳 & 即時地圖:** 支援全球廣播的即時聊天室（含歷史訊息載入），以及能顯示在線玩家座標的動態地圖。
+* **🎨 你畫我猜 (Draw & Guess):**
+  * 超低延遲的畫布軌跡即時同步。
+  * 自動輪替畫家身份與隨機題庫生成。
+  * 即時對話框猜詞判定與自動計分系統。
+* **🃏 撲克鬥牛 (NiuNiu Poker):**
+  * **完善的房間生命週期:** 支援自訂倒數時間的房間創建與加入，並內建防止幽靈房間與重複開房的清理機制。
+  * **防作弊算牌引擎:** 由後端統一負責洗牌、牌型權重計算與花色比對，確保絕對公平。
+  * **籌碼與倍率系統:** 實作經典鬥牛的算分邏輯（包含五花牛 5 倍、牛牛 4 倍等），並提供即時跳錢視覺回饋。
+  * **高互動 UI:** 內建帶有自動消失動畫的「表情包氣泡」互動系統，以及完整的遊戲規則浮動視窗。
+
+### 🛠 技術棧
+
+* **前端 (Frontend):** React.js, Vite, React Router, `react-use-websocket`
+* **後端 (Backend):** Node.js, Express.js, `ws` (原生 WebSockets)
+* **資料庫 (Database):** MongoDB
+* **部署環境:** Vercel (前端) / Render (後端)
+
+### 🚀 本地端運行指南
+
+#### 環境要求
+
+* Node.js (v16 或以上版本)
+* MongoDB 資料庫連線字串 (URI)
+
+#### 安裝步驟
+
+1. 複製專案到本地端:
+   ```bash
+   git clone [https://github.com/eddiecqw/Web-Application-Development-Project.git](https://github.com/eddiecqw/Web-Application-Development-Project.git)
+   ```
+
+* 安裝後端依賴套件:
+
+```bash
+cd backend 
+npm install
 ```
-### Key Points:
- - Metadata Storage: The backend stores file metadata (type, mimeType, filename) in MongoDB
- - Base64 Encoding: The actual file content is expected to be base64-encoded in data.content
- - Broadcast Strategy: Files are broadcast immediately to all connected clients in real-time
- - Persistence: All messages (including files) are stored in MongoDB for history
 
-## 👥🫂Real-Time Chat System
-### A. WebSocket for Real-Time Messaging:
- - Each client maintains a persistent WebSocket connection
- - Messages are instantly broadcast to all connected clients
- - No polling needed - immediate delivery
-### B. Database for Message Persistence:
-```javascript
-// On connection, send last 8 messages from history
-const messages = await db
-  .collection('ChatMessages')
-  .find()
-  .sort({ timestamp: -1 })
-  .limit(8)
-  .toArray();
-
-connection.send(JSON.stringify(messages.reverse()));
-```
-### C. Message Flow:
- - Client sends CHAT_MESSAGE via WebSocket
- - Server saves to MongoDB
- - Server broadcasts to all connected clients
- - New clients receive recent history on connect
-## Web pages walkthrough:
-### UI of the login page:
-(blurred background and colourful Text with special css function)\
-<img width="941" height="504" alt="image" src="https://github.com/user-attachments/assets/b8f3ca28-7998-4182-a772-b79ba108eac6" />
-
-If there is an unregistered email address, it would alter user, and lead user to the registration page:\
-<img width="941" height="504" alt="image" src="https://github.com/user-attachments/assets/24dcb823-e678-4e55-bd08-a71656c30274" />
-
-### UI of Registration page: 
-Once a user are lead from the login page, it would keep the account and password they typed, and you can verify it using button ”verify email”\
-<img width="879" height="405" alt="image" src="https://github.com/user-attachments/assets/e4841d68-443e-4d16-979e-0d7e4ff5faee" />
-
-Double Checking the password: (if not match)\
-<img width="880" height="406" alt="image" src="https://github.com/user-attachments/assets/bbe982b4-f9d1-4f02-82fe-422c3ae59aae" />
-
-Registration success result:\
-<img width="941" height="504" alt="image" src="https://github.com/user-attachments/assets/e2ea40b7-c13f-4d8b-87ff-f23dc28c50b9" />
-
-Meanwhile, in server side (last line):\
-<img width="564" height="173" alt="image" src="https://github.com/user-attachments/assets/edd18d3b-3e45-4c65-a375-8a4b7778e9ff" />
-
-### UI of Chat Room page:
-<img width="941" height="433" alt="image" src="https://github.com/user-attachments/assets/4eaeae46-d726-4d87-94fe-09c74c89e31e" />
-
-Chat Room supports multi-users:\
-<img width="941" height="501" alt="image" src="https://github.com/user-attachments/assets/b1807532-09c3-4bbb-b05d-24fd0e2df179" />
-
-It also supports user to upload multi-types of files (e.g. pdf, docx, pptx, jpg ….):\
-<img width="941" height="504" alt="image" src="https://github.com/user-attachments/assets/98baccbc-b41b-451a-9922-3a896d55eb12" />
-
-Link to google:\
-<img width="941" height="433" alt="image" src="https://github.com/user-attachments/assets/d07d2060-e694-44ce-9aa5-5b99bf7e1021" />
-
-Refresh page:\
-<img width="941" height="433" alt="image" src="https://github.com/user-attachments/assets/61b8a338-4111-4bcb-b6f5-80b97b1d162f" />
-<img width="941" height="433" alt="image" src="https://github.com/user-attachments/assets/71948d90-2212-42eb-bff0-a63b7aa64f9e" />
-
-Meanwhile, on the side of server:\
-<img width="702" height="87" alt="image" src="https://github.com/user-attachments/assets/742558e9-8a49-42b8-9c02-e30a06b42a9d" />
-
-### Cursor page with button “Back to Chat” which navigates to the chat room page:
-<img width="941" height="504" alt="image" src="https://github.com/user-attachments/assets/a53ea71d-2331-4af6-94dd-3bb76bb62041" />
-
-### Map function with “back to chat” button: 
-users can see their location in map page, and corresponding latitude, longitude and accuracy:
-<img width="941" height="504" alt="image" src="https://github.com/user-attachments/assets/7e2ed9ab-7fae-4670-93c0-0aae2db0ee04" />
-
-It supports multi-user real-time location sharing function:\
-<img width="941" height="438" alt="image" src="https://github.com/user-attachments/assets/32c839c8-7004-483f-92bc-1aafe87e4acc" />
-
-When you click the mark, it would appear the corresponding user and his location:\
-<img width="941" height="863" alt="image" src="https://github.com/user-attachments/assets/f2a92600-34ec-4b28-98bf-7877bcfcbecf" />
-
-Also yours:\
-<img width="941" height="433" alt="image" src="https://github.com/user-attachments/assets/2edb91fc-c207-41e1-a33c-a6eac96f6a10" />
-
-### Drawing Game:\
-<img width="941" height="433" alt="image" src="https://github.com/user-attachments/assets/4c9576e2-8404-4a04-8ef4-5ee06ccdbf93" />
-
-Create game room:\
-<img width="941" height="433" alt="image" src="https://github.com/user-attachments/assets/5dc3a7b5-05e4-45b8-bd4d-a0fe6c22ae47" />
-
-Meanwhile, on the side of server:\
-<img width="723" height="80" alt="image" src="https://github.com/user-attachments/assets/88e91494-7f62-4fdd-8cc8-15798b3add52" 
-  />
-Meanwhile, in chat room:\
-<img width="941" height="863" alt="image" src="https://github.com/user-attachments/assets/4fa88aae-a35a-4fab-9d00-d005031c1a45" />
-
-Users can join the room with the corresponding roomId:\
-<img width="941" height="433" alt="image" src="https://github.com/user-attachments/assets/d7721fe4-1ebb-4cf2-b07b-c14910e53488" />
-
-Painter side:\
-<img width="941" height="433" alt="image" src="https://github.com/user-attachments/assets/3054f99d-291c-40c2-b1e1-d4396e21f480" />
-
-Guesser side:\
-<img width="941" height="433" alt="image" src="https://github.com/user-attachments/assets/7b2d9878-705e-4299-a22f-3432e4d22a91" />
-
-Afterwards, the painter draws, other users guess, if guess is right, then guesser would get 100 scores and the painter get 50 scores:\
-<img width="941" height="863" alt="image" src="https://github.com/user-attachments/assets/ecb316e2-77d0-4458-94cb-29c426c2aff6" />
+* 安裝前端依賴套件:
+  
+  ```bash
+  cd frontend 
+  npm install
+  ```
+* 環境變數設定:
+  
+  * 在後端目錄建立 `.env` 檔案:
+    ```
+    MONGODB\_URI=你的\_mongodb\_連線字串
+    PORT=53840
+    ```
+  * 在前端目錄建立 `.env` 檔案:
+    ```
+    VITE\_WS\_URL=ws://localhost:53840/ws
+    ```
+* 啟動伺服器 (開發模式):
+  
+  * 後端: `node app.mjs`
+  * 前端: `npm run dev`
