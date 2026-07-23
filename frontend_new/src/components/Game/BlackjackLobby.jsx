@@ -3,9 +3,8 @@ import React, { useState, useEffect } from 'react';
 export default function BlackjackLobby({ onCreateRoom, onJoinRoom }) {
   const [joinId, setJoinId] = useState('');
   const [availableRooms, setAvailableRooms] = useState([]);
-  const [settings, setSettings] = useState({ timeLimit: 15, baseBet: 10, deckCount: 4 });
+  const [settings, setSettings] = useState({ timeLimit: 15, baseBet: 10, deckCount: 4, rotateDealer: false });
 
-  // ✨ 定期抓取大廳房間列表
   useEffect(() => {
     const fetchRooms = async () => {
       try {
@@ -30,6 +29,16 @@ export default function BlackjackLobby({ onCreateRoom, onJoinRoom }) {
       
       <div style={{ background: '#f3f4f6', padding: '15px', borderRadius: '8px', marginBottom: '20px', textAlign: 'left' }}>
         <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>⚙️ 創建新房間</h3>
+        
+        {/* ✨ 新增輪流做莊設定 */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <label style={{ fontWeight: 'bold' }}>👑 莊家模式：</label>
+          <select value={settings.rotateDealer} onChange={e => setSettings({...settings, rotateDealer: e.target.value === 'true'})} style={{ padding: '4px 8px', borderRadius: '4px' }}>
+            <option value={false}>系統當莊 (單人可玩)</option>
+            <option value={true}>玩家輪流做莊 (最少2人)</option>
+          </select>
+        </div>
+
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
           <label style={{ fontWeight: 'bold' }}>⏱️ 思考時間：</label>
           <select value={settings.timeLimit} onChange={e => setSettings({...settings, timeLimit: Number(e.target.value)})} style={{ padding: '4px 8px', borderRadius: '4px' }}>
@@ -66,7 +75,6 @@ export default function BlackjackLobby({ onCreateRoom, onJoinRoom }) {
 
       <div style={{ borderTop: '2px dashed #ccc', margin: '20px 0' }}></div>
 
-      {/* ✨ 新增：公開房間列表 */}
       <div style={{ textAlign: 'left' }}>
         <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>🏠 尋找賭桌</h3>
         {availableRooms.length === 0 ? (

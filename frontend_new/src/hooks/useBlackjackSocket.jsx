@@ -30,6 +30,11 @@ export default function useBlackjackSocket(url, eventHandlers = {}) {
         console.log('📦 Blackjack 收到事件:', type); 
 
         switch (type) {
+            // ✨ 新增這一個 case 來接收系統通知
+          case 'BJ_NOTIFICATION':
+            alert(data.message);
+            break;
+
           case 'BJ_SHOW_EMOJI':
             handlersRef.current[type]?.(data);
             break;
@@ -50,10 +55,18 @@ export default function useBlackjackSocket(url, eventHandlers = {}) {
             break;
 
           case 'BJ_ERROR':
+            // 先彈出提示框顯示訊息
             alert(data.message);
-            sessionStorage.removeItem('bjRoomId');
-            setRoomId(null);
-            setRoomData(null);
+            
+            // ✨ 聰明的錯誤分類：只有當訊息包含這些「致命字眼」時，才把玩家踢回大廳
+            const fatalErrors = ['不存在', '無法加入', '解散'];
+            const isFatal = fatalErrors.some(keyword => data.message.includes(keyword));
+            
+            if (isFatal) {
+              sessionStorage.removeItem('bjRoomId');
+              setRoomId(null);
+              setRoomData(null);
+            }
             break;
 
           default:
