@@ -75,8 +75,16 @@ export default function useNiuNiuSocket(url, eventHandlers = {}) {
 
   const createRoom = useCallback((settings) => send('NIUNIU_CREATE_ROOM', settings), [send]);  
   const joinRoom = useCallback((id) => send('NIUNIU_JOIN_ROOM', { roomId: id }), [send]);
-  const startGame = useCallback(() => send('NIUNIU_START_GAME', { roomId }), [send, roomId]);
-  const submitHand = useCallback(() => send('NIUNIU_SUBMIT_HAND', { roomId }), [send, roomId]);
+  // ✨ 加上防護罩：如果傳進來的是 React 點擊事件 (帶有 nativeEvent)，就忽略它，避免 JSON 崩潰
+  const startGame = useCallback((payload) => {
+    const safeData = (payload && !payload.nativeEvent) ? payload : {};
+    send('NIUNIU_START_GAME', { roomId, ...safeData });
+  }, [send, roomId]);
+
+  const submitHand = useCallback((payload) => {
+    const safeData = (payload && !payload.nativeEvent) ? payload : {};
+    send('NIUNIU_SUBMIT_HAND', { roomId, ...safeData });
+  }, [send, roomId]);
   
   const leaveRoom = useCallback(() => {
     sessionStorage.removeItem('niuniuRoomId');

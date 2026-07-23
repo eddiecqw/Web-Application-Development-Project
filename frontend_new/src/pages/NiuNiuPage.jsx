@@ -39,7 +39,7 @@ export default function NiuNiuPage({ user }) {
   const [msg, setMsg] = useState('等待遊戲開始...');
   const [msgColor, setMsgColor] = useState('#fff');
   const [timeLeft, setTimeLeft] = useState(null);
-
+  const [lastStatus, setLastStatus] = useState(null); // ✨ 新增：用來追蹤上一次的狀態
   // 取得目前玩家與其他對手
   const me = useMemo(() => roomData?.players.find(p => p.name === username), [roomData, username]);
   const opponents = useMemo(() => roomData?.players.filter(p => p.name !== username) || [], [roomData, username]);
@@ -48,16 +48,18 @@ export default function NiuNiuPage({ user }) {
   const isShowdown = roomData?.status === 'showdown';
 
   // 處理遊戲狀態改變與倒數計時
+  // 處理遊戲狀態改變與倒數計時
   useEffect(() => {
     if (!roomData) return;
 
-    if (roomData.status === 'playing') {
+    // ✨ 關鍵修復：加入 lastStatus 判斷，確保每局只重置一次，不會因為對手出牌而清空你的畫面
+    if (roomData.status === 'playing' && lastStatus !== 'playing') {
+      setLastStatus('playing');
       setSelectedIndices([]);
       setIsNoNiu(false);
       setManualResult(null);
       setTimeLeft(roomData.timeLimit);
       
-      // 檢查是否為特殊牌型 (自動解鎖)
       if (me?.hand) {
         const special = evaluateHandLocal(me.hand);
         if (special) {
@@ -69,9 +71,11 @@ export default function NiuNiuPage({ user }) {
           setMsgColor('#fff');
         }
       }
-    } else if (roomData.status === 'showdown') {
+    } 
+    else if (roomData.status === 'showdown' && lastStatus !== 'showdown') {
+      setLastStatus('showdown');
       setTimeLeft(null);
-      // 判斷輸贏 (簡易版：只判斷自己是否贏過庄家)
+      
       if (me && roomData.dealer !== me.name) {
         const dealer = roomData.players.find(p => p.name === roomData.dealer);
         if (me.result && dealer?.result) {
@@ -87,12 +91,14 @@ export default function NiuNiuPage({ user }) {
         setMsg('👀 攤牌結果揭曉！');
         setMsgColor('#fff');
       }
-    } else {
+    } 
+    else if (roomData.status === 'waiting' && lastStatus !== 'waiting') {
+      setLastStatus('waiting');
       setMsg(isOwner ? '等待其他玩家加入，點擊「開始遊戲」' : '等待房主開始遊戲...');
       setMsgColor('#fff');
       setTimeLeft(null);
     }
-  }, [roomData?.status, me?.hand, isOwner, me, roomData?.dealer, roomData?.players, roomData?.timeLimit]);
+  }, [roomData?.status, me?.hand, isOwner, me, roomData?.dealer, roomData?.players, roomData?.timeLimit, lastStatus]);
 
   // 倒數計時器邏輯
   useEffect(() => {
@@ -268,7 +274,7 @@ export default function NiuNiuPage({ user }) {
           
           <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
             {roomData.status === 'waiting' && isOwner && (
-              <button onClick={startGame} style={{ padding: '12px 24px', background: 'linear-gradient(to bottom, #fbc02d, #f57f17)', color: '#3e2723', border: 'none', borderRadius: '25px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>
+              <button onClick={() => startGame()} style={{ padding: '12px 24px', background: 'linear-gradient(to bottom, #fbc02d, #f57f17)', color: '#3e2723', border: 'none', borderRadius: '25px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>
                 🎮 開始遊戲
               </button>
             )}
@@ -281,7 +287,7 @@ export default function NiuNiuPage({ user }) {
                   🤷‍♂️ 宣告無牛
                 </button>
                 <button 
-                  onClick={submitHand}
+                  onClick={() => submitHand({ manualResult: manualResult || { type: '無牛', weight: 0 } })}
                   disabled={!manualResult && !isNoNiu}
                   style={{ 
                     padding: '10px 20px', border: 'none', borderRadius: '25px', fontSize: '1rem', fontWeight: 'bold',
