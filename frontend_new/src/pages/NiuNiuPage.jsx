@@ -17,7 +17,7 @@ function evaluateHandLocal(hand) {
   const isFiveFlower = hand.every(c => ['J', 'Q', 'K'].includes(c.rank));
   if (isFiveFlower) return { type: '五花牛', weight: 800 };
 
-  return null; // 不是特殊牌型，交由玩家手動湊牛
+  return null;
 }
 
 // 輔助：找出最大的一張牌
@@ -36,7 +36,6 @@ function compareHands(handA, resultA, handB, resultB) {
   if (resultA.weight > resultB.weight) return true;
   if (resultA.weight < resultB.weight) return false;
   
-  // 牌型相同，比最大牌的點數
   const highA = getHighestCard(handA);
   const highB = getHighestCard(handB);
   if (!highA || !highB) return false;
@@ -44,7 +43,6 @@ function compareHands(handA, resultA, handB, resultB) {
   if (highA.numValue > highB.numValue) return true;
   if (highA.numValue < highB.numValue) return false;
   
-  // 點數也相同，比花色
   return highA.suitValue > highB.suitValue;
 }
 
@@ -60,14 +58,18 @@ export default function NiuNiuPage({ user }) {
     gameState: { roomId, roomData }
   } = useNiuNiuSocket(wsUrl);
 
-  // 玩家理牌狀態
+  // 玩家理牌狀態與 UI 狀態
   const [selectedIndices, setSelectedIndices] = useState([]);
   const [manualResult, setManualResult] = useState(null);
   const [isNoNiu, setIsNoNiu] = useState(false);
   const [msg, setMsg] = useState('等待遊戲開始...');
   const [msgColor, setMsgColor] = useState('#fff');
   const [timeLeft, setTimeLeft] = useState(null);
-  const [lastStatus, setLastStatus] = useState(null); // ✨ 新增：用來追蹤上一次的狀態
+  const [lastStatus, setLastStatus] = useState(null);
+  
+  // ✨ 正確的位置：將 showRules 的 useState 放在元件內部
+  const [showRules, setShowRules] = useState(false); 
+
   // 取得目前玩家與其他對手
   const me = useMemo(() => roomData?.players.find(p => p.name === username), [roomData, username]);
   const opponents = useMemo(() => roomData?.players.filter(p => p.name !== username) || [], [roomData, username]);
@@ -76,11 +78,9 @@ export default function NiuNiuPage({ user }) {
   const isShowdown = roomData?.status === 'showdown';
 
   // 處理遊戲狀態改變與倒數計時
-  // 處理遊戲狀態改變與倒數計時
   useEffect(() => {
     if (!roomData) return;
 
-    // ✨ 關鍵修復：加入 lastStatus 判斷，確保每局只重置一次，不會因為對手出牌而清空你的畫面
     if (roomData.status === 'playing' && lastStatus !== 'playing') {
       setLastStatus('playing');
       setSelectedIndices([]);
@@ -106,7 +106,6 @@ export default function NiuNiuPage({ user }) {
       
       const dealer = roomData.players.find(p => p.name === roomData.dealer);
 
-      // 👑 如果我是庄家：我要結算對戰所有閒家的勝率
       if (me.name === roomData.dealer) {
         let winCount = 0;
         let loseCount = 0;
@@ -122,20 +121,19 @@ export default function NiuNiuPage({ user }) {
         } else if (winCount >= loseCount) {
           setMsg(`👑 庄家通殺！贏了 ${winCount} 家，輸了 ${loseCount} 家！`);
           setMsgColor('#ffd700');
-          new Audio('/success.mp3').play().catch(() => {}); // 播放勝利音效
+          new Audio('/success.mp3').play().catch(() => {});
         } else {
           setMsg(`💸 慘遭圍剿！贏了 ${winCount} 家，輸了 ${loseCount} 家！`);
           setMsgColor('#ff1744');
         }
       } 
-      // 👤 如果我是閒家：我只跟庄家單挑
       else {
         if (dealer && dealer.result && me.result) {
           const isWin = compareHands(me.hand, me.result, dealer.hand, dealer.result);
           if (isWin) {
             setMsg('🎉 恭喜！你贏了庄家！');
             setMsgColor('#00e676');
-            new Audio('/success.mp3').play().catch(() => {}); // 播放勝利音效
+            new Audio('/success.mp3').play().catch(() => {});
           } else {
             setMsg('💀 遺憾！庄家獲勝！');
             setMsgColor('#ff1744');
@@ -154,14 +152,12 @@ export default function NiuNiuPage({ user }) {
     }
   }, [roomData?.status, me?.hand, isOwner, me, roomData?.dealer, roomData?.players, roomData?.timeLimit, lastStatus]);
 
-  // 倒數計時器邏輯
   useEffect(() => {
     if (timeLeft === null || timeLeft <= 0 || roomData?.status !== 'playing') return;
     const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [timeLeft, roomData?.status]);
 
-  // 點擊卡片邏輯
   const toggleCardSelection = (index) => {
     if (!isPlaying || me?.isReady || manualResult?.weight >= 800 || isNoNiu) return;
 
@@ -176,7 +172,6 @@ export default function NiuNiuPage({ user }) {
     });
   };
 
-  // 即時驗證選中牌
   useEffect(() => {
     if (roomData?.status !== 'playing') return;
     if (selectedIndices.length === 3 && me?.hand) {
@@ -203,7 +198,7 @@ export default function NiuNiuPage({ user }) {
       setMsgColor('#fff');
       setManualResult(null);
     }
-  }, [selectedIndices, me?.hand]);
+  }, [selectedIndices, me?.hand, roomData?.status]);
 
   const handleDeclareNoNiu = () => {
     setIsNoNiu(true);
@@ -221,7 +216,6 @@ export default function NiuNiuPage({ user }) {
     }
   };
 
-  // 繪製撲克牌小元件
   const renderCard = (card, idx, isSelectable = false, isSelected = false, isHidden = false) => {
     if (isHidden || !card) {
       return (
@@ -254,7 +248,6 @@ export default function NiuNiuPage({ user }) {
     );
   };
 
-  // 遊戲大廳
   if (!roomId) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -277,11 +270,21 @@ export default function NiuNiuPage({ user }) {
           ← 離開房間
         </button>
         <div style={{ fontWeight: 'bold', color: '#ffd700', fontSize: '1.2rem' }}>房間號: {roomId}</div>
-        {timeLeft !== null && (
-          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: timeLeft <= 10 ? '#ff1744' : '#00e676' }}>
-            ⏱️ {timeLeft}s
-          </div>
-        )}
+        
+        {/* ✨ 右上角按鈕區（倒數計時與規則彈窗入口） */}
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          {timeLeft !== null && (
+            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: timeLeft <= 10 ? '#ff1744' : '#00e676' }}>
+              ⏱️ {timeLeft}s
+            </div>
+          )}
+          <button 
+            onClick={() => setShowRules(true)}
+            style={{ padding: '6px 12px', background: '#2196F3', color: 'white', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}
+          >
+            ❓ 規則
+          </button>
+        </div>
       </header>
 
       {/* 🎰 賭桌主視覺 */}
@@ -293,15 +296,17 @@ export default function NiuNiuPage({ user }) {
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
       }}>
         
-        {/* 對手區域 (顯示於上方) */}
+        {/* 對手區域 */}
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '20px' }}>
           {opponents.map((opp) => (
             <div key={opp.name} style={{ textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '12px' }}>
+              {/* ✨ 加上籌碼顯示 */}
               <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', color: roomData.dealer === opp.name ? '#ffd700' : '#fff' }}>
                 {roomData.dealer === opp.name && '👑 '} {opp.name.split('@')[0]} {opp.isReady && '✅'}
+                <div style={{ color: '#ffd700', fontSize: '0.9rem', marginTop: '4px' }}>💰 {opp.chips ?? 1000}</div>
               </h3>
+              
               <div style={{ display: 'flex', justifyContent: 'center', height: '90px' }}>
-                {/* 狀態為 playing 時顯示蓋牌，showdown 顯示亮牌，否則顯示空牌框 */}
                 {[0,1,2,3,4].map(idx => 
                   renderCard(
                     opp.hand ? opp.hand[idx] : null, 
@@ -312,16 +317,28 @@ export default function NiuNiuPage({ user }) {
                   )
                 )}
               </div>
+              
+              {/* ✨ 對手的跳錢特效與牌型 */}
               {isShowdown && opp.result && (
-                <div style={{ marginTop: '10px', background: 'rgba(0,0,0,0.7)', color: '#00e676', padding: '4px 12px', borderRadius: '15px', border: '1px solid #00e676', display: 'inline-block', fontSize: '0.9rem' }}>
-                  {opp.result.type}
+                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ background: 'rgba(0,0,0,0.7)', color: '#00e676', padding: '4px 12px', borderRadius: '15px', border: '1px solid #00e676', fontSize: '0.9rem' }}>
+                    {opp.result.type}
+                  </div>
+                  {opp.scoreChange !== 0 && (
+                    <div style={{
+                      color: opp.scoreChange > 0 ? '#00e676' : '#ff1744', 
+                      fontWeight: 'bold', fontSize: '1.2rem', marginTop: '5px'
+                    }}>
+                      {opp.scoreChange > 0 ? `+${opp.scoreChange}` : opp.scoreChange}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           ))}
         </div>
 
-        {/* 遊戲訊息與操作區 (中央) */}
+        {/* 遊戲訊息與操作區 */}
         <div style={{ textAlign: 'center', margin: '20px 0' }}>
           <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: msgColor, minHeight: '35px', textShadow: '1px 1px 2px black', marginBottom: '15px' }}>
             {msg}
@@ -358,11 +375,13 @@ export default function NiuNiuPage({ user }) {
           </div>
         </div>
 
-        {/* 玩家自己的區域 (下方) */}
+        {/* 玩家自己的區域 */}
         {me && (
           <div style={{ textAlign: 'center', background: 'rgba(0,0,0,0.4)', padding: '15px', borderRadius: '15px', border: roomData.dealer === me.name ? '2px solid #ffd700' : 'none' }}>
+            {/* ✨ 加上籌碼顯示 */}
             <h2 style={{ margin: '0 0 15px 0', fontSize: '1.2rem', color: roomData.dealer === me.name ? '#ffd700' : '#fff' }}>
               {roomData.dealer === me.name && '👑 '} 你的手牌 {me.isReady && '(已確認 ✅)'}
+              <span style={{ color: '#ffd700', marginLeft: '15px' }}>💰 {me.chips ?? 1000}</span>
             </h2>
             <div style={{ display: 'flex', justifyContent: 'center', height: '110px', alignItems: 'flex-end' }}>
               {[0,1,2,3,4].map(idx => 
@@ -375,15 +394,68 @@ export default function NiuNiuPage({ user }) {
                 )
               )}
             </div>
+            
+            {/* ✨ 自己的跳錢特效與牌型 */}
             {isShowdown && me.result && (
-              <div style={{ marginTop: '15px', background: 'rgba(0,0,0,0.8)', color: '#00e676', padding: '6px 16px', borderRadius: '20px', border: '2px solid #00e676', display: 'inline-block', fontSize: '1.2rem', fontWeight: 'bold' }}>
-                {me.result.type}
+              <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ background: 'rgba(0,0,0,0.8)', color: '#00e676', padding: '6px 16px', borderRadius: '20px', border: '2px solid #00e676', fontSize: '1.2rem', fontWeight: 'bold' }}>
+                  {me.result.type}
+                </div>
+                {me.scoreChange !== 0 && (
+                  <div style={{
+                    color: me.scoreChange > 0 ? '#00e676' : '#ff1744', 
+                    fontWeight: 'bold', fontSize: '1.5rem', marginTop: '10px'
+                  }}>
+                    {me.scoreChange > 0 ? `+${me.scoreChange}` : me.scoreChange}
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
-
       </div>
+
+      {/* ✨ 規則與倍率彈窗 */}
+      {showRules && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#1a4f2c', border: '4px solid #ffd700', borderRadius: '15px',
+            padding: '25px', maxWidth: '500px', width: '90%', color: 'white',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.8)', position: 'relative'
+          }}>
+            <button 
+              onClick={() => setShowRules(false)}
+              style={{ position: 'absolute', top: '10px', right: '15px', background: 'transparent', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}
+            >
+              ✖
+            </button>
+            <h2 style={{ color: '#ffd700', textAlign: 'center', marginTop: 0 }}>📜 撲克鬥牛 規則與賠率</h2>
+            
+            <div style={{ lineHeight: '1.6', fontSize: '1rem' }}>
+              <p><strong>【基本玩法】</strong> 每人發 5 張牌，閒家與庄家比大小。你需要先挑出 3 張加總為 10 的倍數的牌 (湊牛)，剩下 2 張相加的個位數即為「牛幾」。</p>
+              
+              <h3 style={{ color: '#00e676', borderBottom: '1px solid #00e676', paddingBottom: '5px' }}>💰 牌型倍率表 (底注 10)</h3>
+              <ul style={{ paddingLeft: '20px', margin: '10px 0' }}>
+                <li><strong>五小牛、四炸、五花牛：</strong> 5 倍 (贏/輸 50)</li>
+                <li><strong>鬥牛 (牛牛)：</strong> 4 倍 (贏/輸 40)</li>
+                <li><strong>牛九：</strong> 3 倍 (贏/輸 30)</li>
+                <li><strong>牛七、牛八：</strong> 2 倍 (贏/輸 20)</li>
+                <li><strong>無牛 ~ 牛六：</strong> 1 倍 (贏/輸 10)</li>
+              </ul>
+
+              <h3 style={{ color: '#00e676', borderBottom: '1px solid #00e676', paddingBottom: '5px' }}>⚖️ 大小比較順序</h3>
+              <p>1. 先比牌型權重 (五小牛 &gt; 牛牛 &gt; 牛八 &gt; 無牛...)</p>
+              <p>2. 若牌型相同，比單張最大牌的點數 (K &gt; Q &gt; J &gt; 10...)</p>
+              <p>3. 若點數也相同，比花色 (♠ &gt; ♥ &gt; ♣ &gt; ♦)</p>
+              <p style={{ color: '#ff1744', fontWeight: 'bold' }}>注意：結算時以「贏家」的倍率來決定輸贏籌碼量！</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
