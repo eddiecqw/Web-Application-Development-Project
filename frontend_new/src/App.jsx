@@ -5,6 +5,7 @@ import { Login } from './components/Login';
 import Register from './components/Register';
 import DrawGuessPage from './pages/DrawGuessPage';
 import NiuNiuPage from './pages/NiuNiuPage';
+import BlackjackPage from './pages/BlackjackPage';
 import { Home } from './components/ChatRoom'; 
 import MapComponent from './components/MapComponent';
 import './App.css';
@@ -32,6 +33,10 @@ const App = () => {
           element={user ? <Home username={user.email} onLogout={() => setUser(null)} /> : <Navigate to="/login" replace />} 
         />
         <Route element={user ? <NiuNiuPage user={user} /> : <Navigate to="/login" />} path="/niuniu" />
+        <Route 
+          path="/blackjack" 
+          element={user ? <BlackjackPage user={user} /> : <Navigate to="/login" replace />} 
+        />
         <Route 
           path="/map" 
           element={user ? <MapComponent /> : <Navigate to="/login" replace />} 
