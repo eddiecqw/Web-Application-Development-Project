@@ -292,6 +292,20 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
       }
       break;
     }
+
+    // ✨ 新增：處理玩家發送表情
+    case 'NIUNIU_SEND_EMOJI': {
+      const room = niuniuRooms[roomId];
+      if (!room) return;
+      
+      // 直接廣播給房間所有人 (包含發送者自己)
+      broadcastToRoom(roomId, {
+        type: 'NIUNIU_SHOW_EMOJI',
+        data: { username, emoji: data.emoji }
+      });
+      break;
+    }
+
   }
 }
 
