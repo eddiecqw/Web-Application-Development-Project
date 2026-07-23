@@ -63,6 +63,38 @@ function evaluateHand(hand) {
   return { type: '無牛', weight: 0 };
 }
 
+// 輔助：找出最大的一張牌
+function getHighestCard(hand) {
+  if (!hand || hand.length === 0) return null;
+  return hand.reduce((max, card) => {
+    if (card.numValue > max.numValue) return card;
+    if (card.numValue === max.numValue && card.suitValue > max.suitValue) return card;
+    return max;
+  }, hand[0]);
+}
+
+// 輔助：比較兩副牌的大小 (回傳 true 代表 handA 贏)
+function compareHands(handA, resultA, handB, resultB) {
+  if (!resultA || !resultB) return false;
+  if (resultA.weight > resultB.weight) return true;
+  if (resultA.weight < resultB.weight) return false;
+  const highA = getHighestCard(handA);
+  const highB = getHighestCard(handB);
+  if (!highA || !highB) return false;
+  if (highA.numValue > highB.numValue) return true;
+  if (highA.numValue < highB.numValue) return false;
+  return highA.suitValue > highB.suitValue;
+}
+
+// 輔助：取得牌型倍率
+function getMultiplier(weight) {
+  if (weight >= 800) return 5; // 五花牛、四炸、五小牛
+  if (weight === 100) return 4; // 牛牛
+  if (weight === 90) return 3;  // 牛九
+  if (weight >= 70) return 2;   // 牛七、牛八
+  return 1;                     // 無牛 ~ 牛六
+}
+
 // ==========================================
 // 2. 路由處理器 (導流所有鬥牛相關的 WebSocket 請求)
 // ==========================================
@@ -104,7 +136,7 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
       niuniuRooms[newRoomId] = {
         id: newRoomId,
         owner: username,
-        players: [{ name: username, isReady: false, hand: [], result: null }],
+        players: [{ name: username, isReady: false, hand: [], result: null, chips: 1000, scoreChange: 0 }],
         status: 'waiting', 
         timeLimit: timeLimit,
         dealer: username 
@@ -140,7 +172,7 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
 
       // 4. 檢查玩家是否已經在房間內，不在的話就把他加進去
       if (!room.players.some(p => p.name === username)) {
-        room.players.push({ name: username, isReady: false, hand: [], result: null });
+        room.players.push({ name: username, isReady: false, hand: [], result: null, chips: 1000, scoreChange: 0 });
       }
 
       // 5. 廣播給房間所有人：有新玩家加入
@@ -193,22 +225,51 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
         });
 
         // 如果全部提交完畢，進入攤牌階段
+        // 如果全部提交完畢，進入攤牌階段與算分
         if (allReady) {
+          const dealer = room.players.find(p => p.name === room.dealer);
+          const baseBet = 10; // 底注 10
+          
+          // 重置所有人這局的得分變化
+          room.players.forEach(p => p.scoreChange = 0);
+
+          if (dealer) {
+            room.players.forEach(p => {
+              if (p.name !== dealer.name) { // 閒家跟庄家比
+                const isDealerWin = compareHands(dealer.hand, dealer.result, p.hand, p.result);
+                const winnerResult = isDealerWin ? dealer.result : p.result;
+                const multiplier = getMultiplier(winnerResult.weight);
+                const amount = baseBet * multiplier;
+
+                if (isDealerWin) {
+                  dealer.scoreChange += amount;
+                  dealer.chips += amount;
+                  p.scoreChange -= amount;
+                  p.chips -= amount;
+                } else {
+                  dealer.scoreChange -= amount;
+                  dealer.chips -= amount;
+                  p.scoreChange += amount;
+                  p.chips += amount;
+                }
+              }
+            });
+          }
+
           room.status = 'showdown';
           broadcastToRoom(roomId, {
             type: 'NIUNIU_SHOWDOWN',
             data: { room }
           });
           
-          // 局數結束後，重置準備狀態回到 waiting
           setTimeout(() => {
             room.status = 'waiting';
-            room.players.forEach(p => p.isReady = false);
+            room.players.forEach(p => { p.isReady = false; p.scoreChange = 0; }); // 清空當局變化
             broadcastToRoom(roomId, {
               type: 'NIUNIU_ROUND_ENDED',
               data: { room }
             });
-          }, 10000); // 給大家 10 秒看結果
+          }, 10000); 
         }
       }
       break;
