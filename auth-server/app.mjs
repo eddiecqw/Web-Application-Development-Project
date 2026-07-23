@@ -2,6 +2,8 @@ import express from 'express';
 import { WebSocketServer } from 'ws';
 // ✨ 將 cleanupNiuNiuConnection 也引入進來
 import { handleNiuNiuMessage, niuniuRooms, cleanupNiuNiuConnection } from './niuniuHandler.mjs';
+// ✨ 新增 21 點模組
+import { handleBlackjackMessage, blackjackRooms, cleanupBlackjackConnection } from './blackjackHandler.mjs';
 import cors from 'cors';
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
@@ -211,6 +213,29 @@ wsServer.on('connection', async (connection, request) => {
       handleNiuNiuMessage(connection, type, data, wsServer, callbacks);
       return; 
     }
+
+    // ✨ 新增：攔截並處理 21 點的事件
+    if (type && type.startsWith('BJ_')) {
+      data.username = connection._username || data.username; 
+
+      const callbacks = {
+        onRoomCreated: async (newRoomId, gameName) => {
+          const systemMessage = {
+            sender: 'System',
+            content: `🃏 ${gameName} 房間 [${newRoomId}] 已創建，快來加入挑戰吧！`,
+            timestamp: new Date(),
+            type: 'system'
+          };
+          try { await db.collection('ChatMessages').insertOne(systemMessage); } catch (e) {}
+          Object.values(connections).forEach((conn) => {
+            if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage]));
+          });
+        }
+      };
+      handleBlackjackMessage(connection, type, data, wsServer, callbacks);
+      return; 
+    }
+
     switch (type) {
       
       case 'LOAD_MORE_MESSAGES': {
@@ -483,6 +508,8 @@ wsServer.on('connection', async (connection, request) => {
   connection.on('close', () => {
     if (connection._username) {
       cleanupNiuNiuConnection(connection._username, connection._niuniuRoomId, wsServer);
+      // ✨ 新增 21 點的斷線清理
+      cleanupBlackjackConnection(connection._username, connection._bjRoomId, wsServer);
     }
     const roomId = connection._roomId;
     const playerId = connection._playerId;
