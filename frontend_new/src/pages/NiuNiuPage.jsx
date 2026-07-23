@@ -20,6 +20,34 @@ function evaluateHandLocal(hand) {
   return null; // 不是特殊牌型，交由玩家手動湊牛
 }
 
+// 輔助：找出最大的一張牌
+function getHighestCard(hand) {
+  if (!hand || hand.length === 0) return null;
+  return hand.reduce((max, card) => {
+    if (card.numValue > max.numValue) return card;
+    if (card.numValue === max.numValue && card.suitValue > max.suitValue) return card;
+    return max;
+  }, hand[0]);
+}
+
+// 輔助：比較兩副牌的大小 (回傳 true 代表 handA 贏)
+function compareHands(handA, resultA, handB, resultB) {
+  if (!resultA || !resultB) return false;
+  if (resultA.weight > resultB.weight) return true;
+  if (resultA.weight < resultB.weight) return false;
+  
+  // 牌型相同，比最大牌的點數
+  const highA = getHighestCard(handA);
+  const highB = getHighestCard(handB);
+  if (!highA || !highB) return false;
+  
+  if (highA.numValue > highB.numValue) return true;
+  if (highA.numValue < highB.numValue) return false;
+  
+  // 點數也相同，比花色
+  return highA.suitValue > highB.suitValue;
+}
+
 export default function NiuNiuPage({ user }) {
   const navigate = useNavigate();
   const username = user.email;
@@ -76,20 +104,46 @@ export default function NiuNiuPage({ user }) {
       setLastStatus('showdown');
       setTimeLeft(null);
       
-      if (me && roomData.dealer !== me.name) {
-        const dealer = roomData.players.find(p => p.name === roomData.dealer);
-        if (me.result && dealer?.result) {
-          if (me.result.weight > dealer.result.weight) {
+      const dealer = roomData.players.find(p => p.name === roomData.dealer);
+
+      // 👑 如果我是庄家：我要結算對戰所有閒家的勝率
+      if (me.name === roomData.dealer) {
+        let winCount = 0;
+        let loseCount = 0;
+        roomData.players.forEach(p => {
+          if (p.name !== me.name && p.result) {
+            if (compareHands(me.hand, me.result, p.hand, p.result)) winCount++;
+            else loseCount++;
+          }
+        });
+
+        if (winCount === 0 && loseCount === 0) {
+          setMsg('👀 攤牌結果揭曉！');
+        } else if (winCount >= loseCount) {
+          setMsg(`👑 庄家通殺！贏了 ${winCount} 家，輸了 ${loseCount} 家！`);
+          setMsgColor('#ffd700');
+          new Audio('/success.mp3').play().catch(() => {}); // 播放勝利音效
+        } else {
+          setMsg(`💸 慘遭圍剿！贏了 ${winCount} 家，輸了 ${loseCount} 家！`);
+          setMsgColor('#ff1744');
+        }
+      } 
+      // 👤 如果我是閒家：我只跟庄家單挑
+      else {
+        if (dealer && dealer.result && me.result) {
+          const isWin = compareHands(me.hand, me.result, dealer.hand, dealer.result);
+          if (isWin) {
             setMsg('🎉 恭喜！你贏了庄家！');
             setMsgColor('#00e676');
+            new Audio('/success.mp3').play().catch(() => {}); // 播放勝利音效
           } else {
             setMsg('💀 遺憾！庄家獲勝！');
             setMsgColor('#ff1744');
           }
+        } else {
+          setMsg('👀 攤牌結果揭曉！');
+          setMsgColor('#fff');
         }
-      } else {
-        setMsg('👀 攤牌結果揭曉！');
-        setMsgColor('#fff');
       }
     } 
     else if (roomData.status === 'waiting' && lastStatus !== 'waiting') {
@@ -124,6 +178,7 @@ export default function NiuNiuPage({ user }) {
 
   // 即時驗證選中牌
   useEffect(() => {
+    if (roomData?.status !== 'playing') return;
     if (selectedIndices.length === 3 && me?.hand) {
       const sum = selectedIndices.reduce((acc, idx) => acc + me.hand[idx].value, 0);
       if (sum % 10 === 0) {
