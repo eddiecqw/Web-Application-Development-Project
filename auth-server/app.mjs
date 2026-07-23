@@ -129,6 +129,23 @@ app.get('/api/niuniu-rooms', (req, res) => {
   }
 });
 
+// ✨ 新增 21 點專屬 API
+app.get('/api/blackjack-rooms', (req, res) => {
+  try {
+    const rooms = Object.values(blackjackRooms).map(room => ({
+      roomId: room.id,
+      playerCount: room.players.length,
+      timeLimit: room.settings.timeLimit,
+      baseBet: room.settings.baseBet,
+      status: room.status,
+      owner: room.owner
+    }));
+    res.json({ success: true, rooms });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 function broadcastSystemStatus() {
   const totalOnline = Object.keys(connections).length;
   const mapUsers = Object.values(connections).filter(conn => conn._location).length;

@@ -18,6 +18,23 @@ export function handleBlackjackMessage(ws, type, data, wss, callbacks) {
   };
 
   switch (type) {
+    // ✨ 新增：開始遊戲邏輯
+    case 'BJ_START_GAME': {
+      const room = blackjackRooms[roomId];
+      // 確保房間存在，且只有房主能按開始
+      if (!room || room.owner !== username) return;
+
+      room.status = 'playing'; // 改變狀態
+      
+      // ⚠️ 下一階段我們才會在這裡加入「發牌引擎」
+      
+      broadcastToRoom(roomId, {
+        type: 'BJ_GAME_STARTED',
+        data: { room }
+      });
+      break;
+    }
+    
     case 'BJ_CREATE_ROOM': {
       // 1. 清理舊房間
       for (const id in blackjackRooms) {
