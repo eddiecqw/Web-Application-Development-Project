@@ -349,7 +349,7 @@ export function Home({ username ,onLogout}) {
               }}
             >
               <span>↓</span>
-              <span>{unreadCount} 條新訊息</span>
+              <span>{unreadCount/2} 條新訊息</span>
             </button>
           )}
 

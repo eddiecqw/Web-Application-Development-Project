@@ -83,6 +83,18 @@ export function Login({ onLogin  }) {
     });
   };
 
+  // ✨ 新增：遊客登入邏輯
+  const handleGuestLogin = () => {
+    // 隨機生成一個四位數的遊客 ID
+    const guestId = `Guest_${Math.floor(1000 + Math.random() * 9000)}`;
+    // 加上 isGuest: true 的標記
+    const guestUser = { email: guestId, isGuest: true }; 
+    
+    localStorage.setItem('user', JSON.stringify(guestUser));
+    onLogin(guestUser); 
+    navigate('/'); 
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setEmailError('');
@@ -134,7 +146,6 @@ export function Login({ onLogin  }) {
           />
           {emailError && <div className="errorLabel">{emailError}</div>}
 
-          {/* ✨ 修正：移除硬編碼的寬度，讓父層只作相對定位，完全繼承 inputBox 尺寸 */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <input
               className="inputBox"
@@ -170,6 +181,21 @@ export function Login({ onLogin  }) {
               Register
             </button>
           </div>
+          
+          {/* ✨ 新增：遊客登入按鈕 */}
+          <button 
+            type="button" 
+            onClick={handleGuestLogin}
+            style={{
+              marginTop: '0px', width: '40%', padding: '12px', background: 'rgba(255, 255, 255, 0.2)',
+              color: 'black', border: '1px solid rgba(255, 255, 255, 0.4)', borderRadius: '8px', 
+              fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s',backdropFilter: 'blur(5px)'
+            }}
+            onMouseOver={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.3)'}
+            onMouseOut={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
+          >
+            👻 Guest mode
+          </button>
         </form>
       </div>
     </div>
