@@ -127,19 +127,19 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
 
       // 2. 🌟 關鍵修復：必須先「宣告並產生」 newRoomId 與 timeLimit
       const newRoomId = Math.random().toString(36).substring(2, 8);
-      const timeLimit = data.timeLimit || 60;
+      const settings = {
+        timeLimit: data.timeLimit || 30,
+        rotateDealer: data.rotateDealer || false // ✨ 新增：輪流做莊設定
+      };
 
-      // 3. 🌟 等 newRoomId 產生後，才能把它綁定到 ws 身上
-      ws._niuniuRoomId = newRoomId;
-
-      // 4. 建立房間資料
       niuniuRooms[newRoomId] = {
         id: newRoomId,
         owner: username,
-        players: [{ name: username, isReady: false, hand: [], result: null, chips: 1000, scoreChange: 0 }],
+        dealer: username, // 初始莊家
+        dealerIndex: 0,   // ✨ 新增：紀錄目前輪到第幾位莊家
         status: 'waiting', 
-        timeLimit: timeLimit,
-        dealer: username 
+        settings: settings,
+        players: [{ name: username, chips: 1000, hand: [], result: null, scoreChange: 0, isReady: false }]
       };
 
       ws.send(JSON.stringify({
@@ -263,13 +263,23 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
           });
           
           setTimeout(() => {
-            room.status = 'waiting';
-            room.players.forEach(p => { p.isReady = false; p.scoreChange = 0; }); // 清空當局變化
-            broadcastToRoom(roomId, {
-              type: 'NIUNIU_ROUND_ENDED',
-              data: { room }
-            });
-          }, 4000); 
+            if (niuniuRooms[roomId]) {
+              const room = niuniuRooms[roomId];
+              room.status = 'waiting';
+              
+              // ✨ 輪流當莊核心邏輯：換下一個人當莊
+              if (room.settings.rotateDealer) {
+                room.dealerIndex = (room.dealerIndex + 1) % room.players.length;
+                room.dealer = room.players[room.dealerIndex].name;
+              }
+
+              room.players.forEach(p => { p.isReady = false; p.scoreChange = 0; p.result = null; p.hand = []; });
+              broadcastToRoom(roomId, {
+                type: 'NIUNIU_ROUND_ENDED',
+                data: { room }
+              });
+            }
+          }, 4000);
         }
       }
       break;
@@ -280,16 +290,19 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
       const room = niuniuRooms[roomId];
       delete ws._niuniuRoomId;
       if (!room) return;
+      
+      // ✨ 你少抄了這最重要的一行！(把玩家從名單中剔除)
+      room.players = room.players.filter(p => p.name !== username);
 
-      if (room.owner === username) {
-        // 房主離開，直接解散房間
-        delete niuniuRooms[roomId];
-        broadcastToRoom(roomId, { type: 'NIUNIU_ERROR', data: { message: '房主已離開，房間解散' } });
-      } else {
-        // 閒家離開，將他從列表中移除
-        room.players = room.players.filter(p => p.name !== username);
-        broadcastToRoom(roomId, { type: 'NIUNIU_PLAYER_JOINED', data: { room } });
+      if (room.players.length === 0) {
+        delete niuniuRooms[roomId]; 
+        return;
       }
+      if (room.owner === username) room.owner = room.players[0].name; 
+      if (room.dealer === username) room.dealer = room.players[0].name;
+      
+      // ✨ 剔除後要廣播給其他人，畫面才會更新
+      broadcastToRoom(roomId, { type: 'NIUNIU_PLAYER_JOINED', data: { room } });
       break;
     }
 
@@ -311,30 +324,26 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
 
 // ✨ 修改清理函數，接收 roomId 參數，只清理該連線確實存在的房間
 export function cleanupNiuNiuConnection(username, roomId, wss) {
-  if (!roomId) return; // 如果這條斷開的連線根本沒進房間（例如聊天室舊連線），就直接忽略！
+  if (!roomId) return; 
 
   const room = niuniuRooms[roomId];
   if (!room) return;
 
-  if (room.owner === username) {
-    // 房主斷線，通知其他人並解散
-    const playerNames = room.players.map(p => p.name);
-    wss.clients.forEach(client => {
-      if (client.readyState === 1 && client._username && playerNames.includes(client._username)) {
-        client.send(JSON.stringify({ type: 'NIUNIU_ERROR', data: { message: '房主已斷線，房間解散' } }));
-      }
-    });
-    delete niuniuRooms[roomId];
-  } else {
-    // 閒家斷線，直接移除
-    room.players = room.players.filter(p => p.name !== username);
-    
-    // 廣播給其他人他離開了，更新房間狀態
-    const playerNames = room.players.map(p => p.name);
-    wss.clients.forEach(client => {
-      if (client.readyState === 1 && client._username && playerNames.includes(client._username)) {
-        client.send(JSON.stringify({ type: 'NIUNIU_PLAYER_JOINED', data: { room } }));
-      }
-    });
+  room.players = room.players.filter(p => p.name !== username);
+
+  if (room.players.length === 0) {
+    delete niuniuRooms[roomId]; 
+    return;
   }
+      
+  if (room.owner === username) room.owner = room.players[0].name; 
+  if (room.dealer === username) room.dealer = room.players[0].name;
+  
+  // ✨ 斷線廣播通知其他玩家
+  const playerNames = room.players.map(p => p.name);
+  wss.clients.forEach(client => {
+    if (client.readyState === 1 && client._username && playerNames.includes(client._username)) {
+      client.send(JSON.stringify({ type: 'NIUNIU_PLAYER_JOINED', data: { room } }));
+    }
+  });
 }
