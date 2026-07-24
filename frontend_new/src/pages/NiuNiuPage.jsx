@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react'; // ✨ 記得引入 useRef
 import { useNavigate } from 'react-router-dom';
 import useNiuNiuSocket from '../hooks/useNiuNiuSocket';
 import NiuNiuLobby from '../components/Game/NiuNiuLobby';
@@ -20,7 +20,6 @@ function evaluateHandLocal(hand) {
   return null;
 }
 
-// 輔助：找出最大的一張牌
 function getHighestCard(hand) {
   if (!hand || hand.length === 0) return null;
   return hand.reduce((max, card) => {
@@ -30,7 +29,6 @@ function getHighestCard(hand) {
   }, hand[0]);
 }
 
-// 輔助：比較兩副牌的大小 (回傳 true 代表 handA 贏)
 function compareHands(handA, resultA, handB, resultB) {
   if (!resultA || !resultB) return false;
   if (resultA.weight > resultB.weight) return true;
@@ -53,14 +51,36 @@ export default function NiuNiuPage({ user }) {
   const baseWsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:53840/ws';
   const wsUrl = `${baseWsUrl}?username=${encodeURIComponent(username)}`;
 
+  // ✨ BGM 音樂狀態與實體設定
+  const [isBgmPlaying, setIsBgmPlaying] = useState(false);
+  const bgmRef = useRef(new Audio('/audio/The_High_Stakes_Shuffle.mp3'));
+
+  useEffect(() => {
+    const audio = bgmRef.current;
+    audio.loop = true;
+    audio.volume = 0.4; // 音量 40%
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, []);
+
+  const toggleBgm = () => {
+    const audio = bgmRef.current;
+    if (isBgmPlaying) {
+      audio.pause();
+    } else {
+      audio.play().catch(e => console.error("音樂播放失敗:", e));
+    }
+    setIsBgmPlaying(!isBgmPlaying);
+  };
+
   const {
-    createRoom, joinRoom, startGame, submitHand, leaveRoom, sendEmoji, // ✨ 引入 sendEmoji
+    createRoom, joinRoom, startGame, submitHand, leaveRoom, sendEmoji,
     gameState: { roomId, roomData }
   } = useNiuNiuSocket(wsUrl, {
-    // ✨ 監聽收到的表情
     NIUNIU_SHOW_EMOJI: (data) => {
       setActiveEmojis(prev => ({ ...prev, [data.username]: data.emoji }));
-      // 3 秒後自動讓氣泡消失
       setTimeout(() => {
         setActiveEmojis(prev => {
           const newState = { ...prev };
@@ -70,11 +90,12 @@ export default function NiuNiuPage({ user }) {
       }, 3000);
     }
   });
+
   const handleSendEmoji = (emoji) => {
     sendEmoji(emoji);
-    setShowEmojiPicker(false); // 發送後自動關閉面板
+    setShowEmojiPicker(false);
   };
-  // 玩家理牌狀態與 UI 狀態
+
   const [selectedIndices, setSelectedIndices] = useState([]);
   const [manualResult, setManualResult] = useState(null);
   const [isNoNiu, setIsNoNiu] = useState(false);
@@ -82,21 +103,17 @@ export default function NiuNiuPage({ user }) {
   const [msgColor, setMsgColor] = useState('#fff');
   const [timeLeft, setTimeLeft] = useState(null);
   const [lastStatus, setLastStatus] = useState(null);
-  
-  // ✨ 正確的位置：將 showRules 的 useState 放在元件內部
   const [showRules, setShowRules] = useState(false); 
-  // ✨ 新增：表情相關狀態
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [activeEmojis, setActiveEmojis] = useState({}); // 儲存畫面上正在顯示的表情
+  const [activeEmojis, setActiveEmojis] = useState({});
   const EMOJI_LIST = ['😀', '😂', '😎', '😍', '😭', '😡', '💩', '👍', '👎', '🎉', '💸', '🤡'];
-  // 取得目前玩家與其他對手
+  
   const me = useMemo(() => roomData?.players.find(p => p.name === username), [roomData, username]);
   const opponents = useMemo(() => roomData?.players.filter(p => p.name !== username) || [], [roomData, username]);
   const isOwner = roomData?.owner === username;
   const isPlaying = roomData?.status === 'playing';
   const isShowdown = roomData?.status === 'showdown';
 
-  // 處理遊戲狀態改變與倒數計時
   useEffect(() => {
     if (!roomData) return;
 
@@ -281,52 +298,41 @@ export default function NiuNiuPage({ user }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#1a4f2c', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#1a4f2c', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px', position: 'relative' }}>
       
       {/* 頂部狀態列 */}
       <header style={{ width: '100%', maxWidth: '900px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', marginBottom: '15px' }}>
         <button onClick={handleLeaveGame} style={{ padding: '8px 16px', background: '#dc3545', color: 'white', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>
           ← 離開房間
         </button>
-        <div style={{ fontWeight: 'bold', color: '#ffd700', fontSize: '1.2rem' }}>房間號: {roomId}</div>
         
-        {/* ✨ 右上角按鈕區（倒數計時與規則彈窗入口） */}
+        {/* ✨ 加上房主標示 */}
+        <div style={{ fontWeight: 'bold', color: '#ffd700', fontSize: '1.2rem' }}>
+          房間號: {roomId} {isOwner && '(房主)'}
+        </div>
+        
+        {/* 右上角按鈕區（倒數計時與按鈕） */}
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center', position: 'relative' }}>
           {timeLeft !== null && (
             <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: timeLeft <= 10 ? '#ff1744' : '#00e676' }}>
               ⏱️ {timeLeft}s
             </div>
           )}
-          
-          {/* ✨ 表情按鈕與面板 */}
-          <div style={{ position: 'relative' }}>
-            <button 
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              style={{ padding: '6px 12px', background: '#ff9800', color: 'white', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}
-            >
-              😀 表情
-            </button>
-            
-            {showEmojiPicker && (
-              <div style={{
-                position: 'absolute', top: '100%', right: 0, marginTop: '10px',
-                background: 'white', padding: '10px', borderRadius: '12px',
-                display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 100
-              }}>
-                {EMOJI_LIST.map(e => (
-                  <button 
-                    key={e} onClick={() => handleSendEmoji(e)}
-                    style={{ fontSize: '1.8rem', background: 'transparent', border: 'none', cursor: 'pointer', padding: '5px', borderRadius: '8px', transition: 'background 0.2s' }}
-                    onMouseOver={(e) => e.target.style.background = '#f0f0f0'}
-                    onMouseOut={(e) => e.target.style.background = 'transparent'}
-                  >
-                    {e}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+
+          {/* ✨ BGM 控制按鈕取代了原本的表情按鈕 */}
+          <button 
+            onClick={toggleBgm} 
+            style={{ 
+              padding: '6px 12px', 
+              background: isBgmPlaying ? '#4caf50' : '#666',
+              color: 'white', borderRadius: '20px', border: 'none', 
+              fontWeight: 'bold', cursor: 'pointer',
+              boxShadow: isBgmPlaying ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none',
+              transition: 'all 0.2s'
+            }}
+          >
+            {isBgmPlaying ? '🔊 BGM' : '🔇 BGM'}
+          </button>
 
           <button 
             onClick={() => setShowRules(true)}
@@ -350,7 +356,6 @@ export default function NiuNiuPage({ user }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '20px' }}>
           {opponents.map((opp) => (
             <div key={opp.name} style={{ textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '12px', position: 'relative' }}>
-              {/* ✨ 對手的表情氣泡 */}
               {activeEmojis[opp.name] && (
                 <div style={{
                   position: 'absolute', top: '-45px', left: '50%', transform: 'translateX(-50%)',
@@ -359,12 +364,10 @@ export default function NiuNiuPage({ user }) {
                   animation: 'fadeUp 0.2s ease-out'
                 }}>
                   {activeEmojis[opp.name]}
-                  {/* 氣泡的小尾巴 */}
                   <div style={{ position: 'absolute', bottom: '-8px', left: '50%', transform: 'translateX(-50%)', borderTop: '8px solid white', borderLeft: '8px solid transparent', borderRight: '8px solid transparent' }} />
                 </div>
               )}
 
-              {/* ✨ 加上籌碼顯示 */}
               <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', color: roomData.dealer === opp.name ? '#ffd700' : '#fff' }}>
                 {roomData.dealer === opp.name && '👑 '} {opp.name.split('@')[0]} {opp.isReady && '✅'}
                 <div style={{ color: '#ffd700', fontSize: '0.9rem', marginTop: '4px' }}>💰 {opp.chips ?? 1000}</div>
@@ -382,7 +385,6 @@ export default function NiuNiuPage({ user }) {
                 )}
               </div>
               
-              {/* ✨ 對手的跳錢特效與牌型 */}
               {isShowdown && opp.result && (
                 <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{ background: 'rgba(0,0,0,0.7)', color: '#00e676', padding: '4px 12px', borderRadius: '15px', border: '1px solid #00e676', fontSize: '0.9rem' }}>
@@ -442,8 +444,6 @@ export default function NiuNiuPage({ user }) {
         {/* 玩家自己的區域 */}
         {me && (
           <div style={{ textAlign: 'center', background: 'rgba(0,0,0,0.4)', padding: '15px', borderRadius: '15px', border: roomData.dealer === me.name ? '2px solid #ffd700' : 'none', position: 'relative' }}>
-
-            {/* ✨ 自己的表情氣泡 */}
             {activeEmojis[me.name] && (
               <div style={{
                 position: 'absolute', top: '-45px', left: '50%', transform: 'translateX(-50%)',
@@ -456,7 +456,6 @@ export default function NiuNiuPage({ user }) {
               </div>
             )}
 
-            {/* ✨ 加上籌碼顯示 */}
             <h2 style={{ margin: '0 0 15px 0', fontSize: '1.2rem', color: roomData.dealer === me.name ? '#ffd700' : '#fff' }}>
               {roomData.dealer === me.name && '👑 '} 你的手牌 {me.isReady && '(已確認 ✅)'}
               <span style={{ color: '#ffd700', marginLeft: '15px' }}>💰 {me.chips ?? 1000}</span>
@@ -473,7 +472,6 @@ export default function NiuNiuPage({ user }) {
               )}
             </div>
             
-            {/* ✨ 自己的跳錢特效與牌型 */}
             {isShowdown && me.result && (
               <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{ background: 'rgba(0,0,0,0.8)', color: '#00e676', padding: '6px 16px', borderRadius: '20px', border: '2px solid #00e676', fontSize: '1.2rem', fontWeight: 'bold' }}>
@@ -493,8 +491,44 @@ export default function NiuNiuPage({ user }) {
         )}
       </div>
 
+      {/* ✨ 右下角懸浮表情按鈕 (Floating Action Button) */}
+      <div style={{ position: 'fixed', bottom: '25px', right: '25px', zIndex: 100 }}>
+        {showEmojiPicker && (
+          <div style={{
+            position: 'absolute', bottom: '100%', right: 0, marginBottom: '15px',
+            background: 'white', padding: '10px', borderRadius: '12px',
+            display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+          }}>
+            {EMOJI_LIST.map(e => (
+              <button 
+                key={e} onClick={() => handleSendEmoji(e)}
+                style={{ fontSize: '1.8rem', background: 'transparent', border: 'none', cursor: 'pointer', padding: '5px', borderRadius: '8px', transition: 'background 0.2s' }}
+                onMouseOver={(e) => e.target.style.background = '#f0f0f0'}
+                onMouseOut={(e) => e.target.style.background = 'transparent'}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
+        <button 
+          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+          style={{ 
+            width: '60px', height: '60px', borderRadius: '30px', 
+            background: '#ff9800', color: 'white', border: 'none', 
+            fontSize: '2rem', display: 'flex', justifyContent: 'center', alignItems: 'center',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.5)', cursor: 'pointer',
+            transition: 'transform 0.2s'
+          }}
+          onMouseOver={(e) => e.target.style.transform = 'scale(1.1)'}
+          onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+        >
+          😀
+        </button>
+      </div>
 
-      {/* ✨ 規則與倍率彈窗 */}
+      {/* 規則與倍率彈窗 */}
       {showRules && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
