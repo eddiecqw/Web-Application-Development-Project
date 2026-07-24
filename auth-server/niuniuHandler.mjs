@@ -269,7 +269,7 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
               type: 'NIUNIU_ROUND_ENDED',
               data: { room }
             });
-          }, 10000); 
+          }, 4000); 
         }
       }
       break;

@@ -152,7 +152,6 @@ function advanceTurn(roomId, wss) {
 
     broadcastToRoom(roomId, 'BJ_SHOWDOWN', wss);
 
-    // 8秒後重置
     setTimeout(() => {
       if (blackjackRooms[roomId]) {
         blackjackRooms[roomId].status = 'waiting';
@@ -167,7 +166,7 @@ function advanceTurn(roomId, wss) {
         blackjackRooms[roomId].dealer = { hand: [], score: 0 };
         broadcastToRoom(roomId, 'BJ_ROUND_ENDED', wss);
       }
-    }, 8000);
+    }, 4000);
 
   } else {
     room.turn = room.players[room.currentPlayerIndex].name;
