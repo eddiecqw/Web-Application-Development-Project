@@ -11,13 +11,14 @@ import MapComponent from './components/MapComponent';
 import './App.css';
 
 const App = () => {
-  // 網頁載入的第一瞬間，就去讀取 localStorage，確保重整不會登出
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
-  // ✨ 遊客點擊註冊的處理邏輯：清除遊客資料並導向註冊頁面
+  // ✨ 新增狀態：控制遊客橫幅是否顯示
+  const [showGuestBanner, setShowGuestBanner] = useState(true);
+
   const handleGuestUpgrade = () => {
     localStorage.removeItem('user');
     setUser(null);
@@ -26,31 +27,50 @@ const App = () => {
 
   return (
     <BrowserRouter>
-      {/* ✨ 遊客模式醒目提示橫幅 (Fixed在畫面最頂端) */}
-      {user?.isGuest && (
+      {/* ✨ 改良版：低調、較窄、且帶有關閉按鈕的橫幅 */}
+      {user?.isGuest && showGuestBanner && (
         <div style={{
-          background: 'linear-gradient(to right, #00ccff, #36f485)',
-          color: 'white', textAlign: 'center', padding: '3px 15px',
+          background: 'rgba(0, 0, 0, 0.75)', // 半透明低調黑
+          backdropFilter: 'blur(4px)',
+          color: '#eee', 
+          textAlign: 'center', 
+          padding: '6px 40px 6px 15px', // 右側留 40px 的空間給關閉按鈕
           position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 9999,
-          boxShadow: '0 2px 10px rgba(0,0,0,0.2)', fontWeight: 'bold', fontSize: '0.95rem',
-          display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1px', flexWrap: 'wrap'
+          fontSize: '0.85rem', display: 'flex', justifyContent: 'center', 
+          alignItems: 'center', gap: '10px', flexWrap: 'wrap',
+          borderBottom: '1px solid rgba(255,255,255,0.1)'
         }}>
-          <span>⚠️ 提醒：您目前使用遊客模式 ({user.email})，退出後籌碼與記錄將會永遠消失。</span>
+          <span>⚠️ 遊客模式 ({user.email})，退出後記錄將清除。</span>
           <button
             onClick={handleGuestUpgrade}
             style={{ 
-              padding: '3px 10px', background: 'white', color: '#f44336', 
-              border: 'none', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              padding: '4px 10px', background: '#ff9800', color: 'white', 
+              border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer',
+              fontSize: '0.8rem', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
             }}
           >
-            👉 立即註冊以保留帳號
+            註冊保留帳號
+          </button>
+          
+          {/* ✨ 關閉按鈕 */}
+          <button
+            onClick={() => setShowGuestBanner(false)}
+            style={{
+              position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+              background: 'transparent', border: 'none', color: '#999', 
+              fontSize: '1.2rem', cursor: 'pointer', padding: '0 5px',
+              transition: 'color 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.color = 'white'}
+            onMouseOut={(e) => e.target.style.color = '#999'}
+          >
+            ✖
           </button>
         </div>
       )}
 
-      {/* ✨ 為了不讓 Fixed 橫幅擋住原本的畫面，當遊客模式時將整個路由容器往下推 */}
-      <div style={{ paddingTop: user?.isGuest ? '50px' : '0', minHeight: '100vh' }}>
+      {/* ✨ 橫幅關閉時，動態將 paddingTop 歸零，並加上平滑過渡動畫 */}
+      <div style={{ paddingTop: (user?.isGuest && showGuestBanner) ? '38px' : '0', minHeight: '100vh', transition: 'padding-top 0.3s ease-in-out' }}>
         <Routes>
           <Route 
             path="/login" 
