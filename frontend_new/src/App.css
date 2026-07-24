@@ -446,6 +446,7 @@
   display: flex;
   flex-direction: column;
   height: calc(100vh - 40px);
+  overflow-y: auto;
 }
 
 /* =========================================================
@@ -479,6 +480,7 @@
     border-radius: 0 !important;        /* 手機版移除圓角，爭取最大可用空間 */
     display: flex !important;           
     flex-direction: column !important;  
+    overflow-y: auto !important;
   }
 
   .chat-container {
@@ -488,7 +490,8 @@
   
   /* 🌟 5. 確保 chat-box 具有彈性壓縮與伸展的能力 */
   .chat-box {
-    flex: 1 1 auto !important;          
+    flex: 1 1 auto !important;  
+    min-height: 150px !important;        
     min-height: 0 !important;           /* 讓 flexbox 允許它壓縮，避免被內部內容撐破 */
     width: 100% !important;
     padding: 10px !important;
