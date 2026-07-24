@@ -503,11 +503,12 @@ export default function NiuNiuPage({ user }) {
           <div style={{
             backgroundColor: '#1a4f2c', border: '4px solid #ffd700', borderRadius: '15px',
             padding: '25px', maxWidth: '500px', width: '90%', color: 'white',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.8)', position: 'relative'
+            boxShadow: '0 10px 30px rgba(0,0,0,0.8)', position: 'relative',
+            maxHeight: '80vh', overflowY: 'auto'
           }}>
             <button 
               onClick={() => setShowRules(false)}
-              style={{ position: 'absolute', top: '10px', right: '15px', background: 'transparent', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}
+              style={{ position: 'absolute', top: '5px', right: '15px', background: 'transparent', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}
             >
               ✖
             </button>
