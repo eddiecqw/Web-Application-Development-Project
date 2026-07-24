@@ -456,8 +456,8 @@
   .titleContainer { font-size: 28px !important; }
   h1 { font-size: 1.5em !important; margin: 0 !important; }
   
-  /* 隱藏不必要的提示文字，把空間還給聊天框 */
-  .name { display: none !important; }
+  /* 隱藏不必要的提示文字，把空間還給聊天框 (加上 .chat-container 限制範圍) */
+  .chat-container .name { display: none !important; }
 
   /* 2. 按鈕優化：縮小字體與內邊距 */
   .nav-button {
