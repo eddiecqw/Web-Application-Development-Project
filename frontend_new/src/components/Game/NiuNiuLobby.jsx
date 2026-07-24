@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 export default function NiuNiuLobby({ onCreateRoom, onJoinRoom }) {
   const [roomIdInput, setRoomIdInput] = useState('');
   const [timeLimit, setTimeLimit] = useState(30);
+  const [rotateDealer, setRotateDealer] = useState(false);
   const [rooms, setRooms] = useState([]);
 
   const fetchRooms = async () => {
@@ -58,9 +59,21 @@ export default function NiuNiuLobby({ onCreateRoom, onJoinRoom }) {
               <option value={999}>無限制</option>
             </select>
           </div>
-
+          {/* ✨ 修正：直接綁定 rotateDealer 狀態 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <label style={{ fontWeight: 'bold' }}>👑 莊家模式：</label>
+            <select 
+              value={rotateDealer} 
+              onChange={e => setRotateDealer(e.target.value === 'true')} 
+              style={{ padding: '4px 8px', borderRadius: '4px' }}
+            >
+              <option value={false}>房主固定連莊</option>
+              <option value={true}>玩家輪流做莊 (最少2人)</option>
+            </select>
+          </div>
+          {/* ✨ 修正：把 rotateDealer 一起傳給後端 */}
           <button 
-            onClick={() => onCreateRoom({ timeLimit })}
+            onClick={() => onCreateRoom({ timeLimit, rotateDealer })}
             style={{ width: '100%', padding: '12px', background: 'linear-gradient(to bottom, #fbc02d, #f57f17)', color: '#3e2723', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}
           >
             ➕ 創建房間

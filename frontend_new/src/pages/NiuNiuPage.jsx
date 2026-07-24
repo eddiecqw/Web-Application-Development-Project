@@ -113,7 +113,8 @@ export default function NiuNiuPage({ user }) {
   const isOwner = roomData?.owner === username;
   const isPlaying = roomData?.status === 'playing';
   const isShowdown = roomData?.status === 'showdown';
-
+  const isRotateDealer = roomData?.settings?.rotateDealer;
+  const notEnoughPlayers = isRotateDealer && roomData?.players?.length < 2;
   useEffect(() => {
     if (!roomData) return;
 
@@ -301,42 +302,65 @@ export default function NiuNiuPage({ user }) {
     <div style={{ minHeight: '100vh', backgroundColor: '#1a4f2c', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px', position: 'relative' }}>
       
       {/* 頂部狀態列 */}
-      <header style={{ width: '100%', maxWidth: '900px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', marginBottom: '15px' }}>
-        <button onClick={handleLeaveGame} style={{ padding: '8px 16px', background: '#dc3545', color: 'white', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>
-          ← 離開房間
+      <header style={{ 
+        width: '100%', maxWidth: '900px', display: 'flex', justifyContent: 'space-between', 
+        alignItems: 'center', padding: '10px 5px', backgroundColor: 'rgba(0,0,0,0.3)', 
+        borderRadius: '8px', marginBottom: '15px', gap: '5px' 
+      }}>
+        
+        <button onClick={handleLeaveGame} style={{ 
+          padding: '6px 10px', background: '#dc3545', color: 'white', 
+          borderRadius: '6px', border: 'none', fontWeight: 'bold', 
+          cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.9rem', flexShrink: 0 
+        }}>
+          ← 離開
         </button>
         
-        {/* ✨ 加上房主標示 */}
-        <div style={{ fontWeight: 'bold', color: '#ffd700', fontSize: '1.2rem' }}>
-          房間號: {roomId} {isOwner && '(房主)'}
+        {/* ✨ 中間：房間與房主資訊垂直排列，明確顯示名字，且防止換行斷字 */}
+        <div style={{ 
+          display: 'flex', flexDirection: 'column', alignItems: 'center', 
+          flex: 1, minWidth: 0, margin: '0 5px' 
+        }}>
+          <div style={{ fontWeight: 'bold', color: '#ffd700', fontSize: '1rem', whiteSpace: 'nowrap' }}>
+            房間: {roomId}
+          </div>
+          <div style={{ 
+            fontSize: '0.8rem', color: '#ffea00', whiteSpace: 'nowrap', 
+            overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' 
+          }}>
+            (房主: {isOwner ? '你' : roomData?.owner?.split('@')[0]})
+          </div>
         </div>
         
-        {/* 右上角按鈕區（倒數計時與按鈕） */}
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', position: 'relative' }}>
+        {/* 右側：BGM與規則按鈕區 */}
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
           {timeLeft !== null && (
-            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: timeLeft <= 10 ? '#ff1744' : '#00e676' }}>
-              ⏱️ {timeLeft}s
+            <div style={{ fontSize: '1rem', fontWeight: 'bold', color: timeLeft <= 10 ? '#ff1744' : '#00e676' }}>
+              ⏱️{timeLeft}s
             </div>
           )}
 
-          {/* ✨ BGM 控制按鈕取代了原本的表情按鈕 */}
           <button 
             onClick={toggleBgm} 
             style={{ 
-              padding: '6px 12px', 
-              background: isBgmPlaying ? '#4caf50' : '#666',
+              padding: '6px 8px', background: isBgmPlaying ? '#4caf50' : '#666',
               color: 'white', borderRadius: '20px', border: 'none', 
-              fontWeight: 'bold', cursor: 'pointer',
+              fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.85rem',
               boxShadow: isBgmPlaying ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none',
               transition: 'all 0.2s'
             }}
           >
-            {isBgmPlaying ? '🔊 BGM' : '🔇 BGM'}
+            {isBgmPlaying ? '🔊' : '🔇'} BGM
           </button>
 
           <button 
             onClick={() => setShowRules(true)}
-            style={{ padding: '6px 12px', background: '#2196F3', color: 'white', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}
+            style={{ 
+              padding: '6px 8px', background: '#2196F3', color: 'white', 
+              borderRadius: '20px', border: 'none', fontWeight: 'bold', 
+              cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+              whiteSpace: 'nowrap', fontSize: '0.85rem'
+            }}
           >
             ❓ 規則
           </button>
@@ -412,9 +436,28 @@ export default function NiuNiuPage({ user }) {
           
           <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
             {roomData.status === 'waiting' && isOwner && (
-              <button onClick={() => startGame()} style={{ padding: '12px 24px', background: 'linear-gradient(to bottom, #fbc02d, #f57f17)', color: '#3e2723', border: 'none', borderRadius: '25px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>
-                🎮 開始遊戲
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <button 
+                  onClick={() => startGame()} 
+                  disabled={notEnoughPlayers}
+                  style={{ 
+                    padding: '12px 24px', 
+                    background: notEnoughPlayers ? '#9e9e9e' : 'linear-gradient(to bottom, #fbc02d, #f57f17)', 
+                    color: notEnoughPlayers ? '#666' : '#3e2723', 
+                    border: 'none', borderRadius: '25px', fontSize: '1.1rem', 
+                    fontWeight: 'bold', cursor: notEnoughPlayers ? 'not-allowed' : 'pointer', 
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)' 
+                  }}
+                >
+                  🎮 開始遊戲
+                </button>
+                {/* ✨ 人數不足時顯示警告 */}
+                {notEnoughPlayers && (
+                  <div style={{ color: '#ff1744', marginTop: '8px', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                    ⚠️ 輪流做莊模式至少需要 2 人
+                  </div>
+                )}
+              </div>
             )}
             {isPlaying && !me?.isReady && (
               <>
