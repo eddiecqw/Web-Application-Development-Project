@@ -43,7 +43,7 @@ export default function BlackjackPage({ user }) {
   };
 
   const handleLeaveGame = () => {
-    if (window.confirm("⚠️ 確定要離開賭桌嗎？")) {
+    if (window.confirm("⚠️ 確定要離開房間嗎？")) {
       leaveRoom();
       navigate('/');
     }

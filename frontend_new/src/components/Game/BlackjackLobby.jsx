@@ -76,7 +76,7 @@ export default function BlackjackLobby({ onCreateRoom, onJoinRoom }) {
       <div style={{ borderTop: '2px dashed #ccc', margin: '20px 0' }}></div>
 
       <div style={{ textAlign: 'left' }}>
-        <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>🏠 尋找賭桌</h3>
+        <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>🏠 尋找房間</h3>
         {availableRooms.length === 0 ? (
           <p style={{ color: '#888', textAlign: 'center' }}>目前沒有公開的房間，自己開一桌吧！</p>
         ) : (
