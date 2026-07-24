@@ -54,8 +54,18 @@ export default function useNiuNiuSocket(url, eventHandlers = {}) {
             break;
 
           case 'NIUNIU_ERROR':
+            // 收到通知先彈出視窗
             alert(data.message);
-            sessionStorage.removeItem('niuniuRoomId');
+            
+            // ✨ 聰明的錯誤分類：只有包含這些「致命字眼」時，才把玩家踢回大廳
+            const fatalErrors = ['不存在', '無法加入', '解散'];
+            const isFatal = fatalErrors.some(keyword => data.message.includes(keyword));
+            
+            if (isFatal) {
+              sessionStorage.removeItem('niuniuRoomId');
+              setRoomId(null);
+              setRoomData(null);
+            }
             break;
 
           default:
