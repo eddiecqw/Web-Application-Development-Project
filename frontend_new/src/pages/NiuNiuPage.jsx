@@ -493,6 +493,7 @@ export default function NiuNiuPage({ user }) {
         )}
       </div>
 
+
       {/* ✨ 規則與倍率彈窗 */}
       {showRules && (
         <div style={{
