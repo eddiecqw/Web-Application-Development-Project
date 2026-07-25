@@ -128,14 +128,19 @@ export function Login({ onLogin  }) {
     <div className="mainContainer">
       <div className="background-blur" />
       <div className="content-wrapper">
-        <div className="titleContainer">
-          <div>Welcome to "<span className="rainbow-text">Happy Chat</span>"</div>
+        
+        <div className="titleContainer" style={{ textAlign: 'center' }}>
+          {/* ✨ 加上 whiteSpace: 'nowrap'，強制「"Happy Chat"」不准換行，保護那個雙引號 */}
+          <div style={{ whiteSpace: 'nowrap' }}>Welcome to "<span className="rainbow-text">Happy Chat</span>"</div>
         </div>
-        <div className='name'>
+        
+        <div className='name' style={{ textAlign: 'center', padding: '10px' }}>
           <div>A peaceful place where you can enjoy chatting and having fun without any worries.</div>
           <div>Designer：CHEN QUANWEI (Eddie)</div>
         </div>
-        <form onSubmit={handleSubmit} className="inputContainer">
+        
+        {/* ✨ 將表單容器設為 flex column 並加上 gap，讓所有元素間距統一 */}
+        <form onSubmit={handleSubmit} className="inputContainer" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
           
           <input
             className="inputBox"
@@ -143,17 +148,19 @@ export function Login({ onLogin  }) {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            style={{ width: '100%', maxWidth: '400px' }} // ✨ 強制寬度與最大寬度
           />
-          {emailError && <div className="errorLabel">{emailError}</div>}
+          {emailError && <div className="errorLabel" style={{ marginTop: '-10px' }}>{emailError}</div>}
 
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* ✨ 密碼框外層：必須加上 width: '100%' 與 maxWidth: '400px'，才不會在手機上縮水變形 */}
+          <div style={{ position: 'relative', width: '100%', maxWidth: '400px', display: 'flex', alignItems: 'center' }}>
             <input
               className="inputBox"
               type={showPassword ? "text" : "password"}
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={{ paddingRight: '40px' }} 
+              style={{ width: '100%', paddingRight: '40px' }} 
             />
             <button
               type="button"
@@ -173,29 +180,30 @@ export function Login({ onLogin  }) {
               {showPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
             </button>
           </div>
-          {passwordError && <div className="errorLabel">{passwordError}</div>}
+          {passwordError && <div className="errorLabel" style={{ marginTop: '-10px' }}>{passwordError}</div>}
 
-          <div className="buttonContainer">
-            <button type="submit">Login</button>
-            <button type="button" onClick={() => navigate('/register')}>
+          {/* ✨ 按鈕區塊優化：覆蓋原本過高的 height，讓按鈕等寬且排列整齊 */}
+          <div className="buttonContainer" style={{ width: '100%', maxWidth: '400px', height: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+            <button type="submit" style={{ width: '100%', padding: '12px', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold' }}>Login</button>
+            <button type="button" onClick={() => navigate('/register')} style={{ width: '100%', padding: '12px', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold' }}>
               Register
             </button>
+            
+            {/* ✨ 遊客登入按鈕統一寬度 */}
+            <button 
+              type="button" 
+              onClick={handleGuestLogin}
+              style={{
+                width: '100%', padding: '12px', background: 'rgba(255, 255, 255, 0.4)',
+                color: '#333', border: '1px solid rgba(255, 255, 255, 0.6)', borderRadius: '8px', 
+                fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', transition: 'background 0.2s', backdropFilter: 'blur(5px)'
+              }}
+              onMouseOver={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.6)'}
+              onMouseOut={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.4)'}
+            >
+              👻 Guest mode
+            </button>
           </div>
-          
-          {/* ✨ 新增：遊客登入按鈕 */}
-          <button 
-            type="button" 
-            onClick={handleGuestLogin}
-            style={{
-              marginTop: '0px', width: '40%', padding: '12px', background: 'rgba(255, 255, 255, 0.2)',
-              color: 'black', border: '1px solid rgba(255, 255, 255, 0.4)', borderRadius: '8px', 
-              fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s',backdropFilter: 'blur(5px)'
-            }}
-            onMouseOver={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.3)'}
-            onMouseOut={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
-          >
-            👻 Guest mode
-          </button>
         </form>
       </div>
     </div>
