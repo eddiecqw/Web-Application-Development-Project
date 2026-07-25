@@ -119,7 +119,7 @@ app.get('/api/niuniu-rooms', (req, res) => {
     const rooms = Object.values(niuniuRooms).map(room => ({
       roomId: room.id,
       playerCount: room.players.length,
-      timeLimit: room.timeLimit,
+      timeLimit: room.settings ? room.settings.timeLimit : 30,
       status: room.status,
       owner: room.owner
     }));

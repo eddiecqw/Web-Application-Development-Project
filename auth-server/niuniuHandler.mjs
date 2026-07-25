@@ -127,6 +127,7 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
 
       // 2. 🌟 關鍵修復：必須先「宣告並產生」 newRoomId 與 timeLimit
       const newRoomId = Math.random().toString(36).substring(2, 8);
+      ws._niuniuRoomId = newRoomId;
       const settings = {
         timeLimit: data.timeLimit || 30,
         rotateDealer: data.rotateDealer || false // ✨ 新增：輪流做莊設定
