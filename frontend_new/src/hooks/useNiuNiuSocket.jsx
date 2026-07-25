@@ -102,10 +102,11 @@ export default function useNiuNiuSocket(url, eventHandlers = {}) {
   // ✨ 新增：發送表情的函數
   const sendEmoji = useCallback((emoji) => send('NIUNIU_SEND_EMOJI', { roomId, emoji }), [send, roomId]);
   const leaveRoom = useCallback(() => {
+    send('NIUNIU_LEAVE_ROOM', { roomId }); 
     sessionStorage.removeItem('niuniuRoomId');
     setRoomId(null);
     setRoomData(null);
-  }, []);
+  }, [send, roomId]);
   return {
     send, createRoom, joinRoom, startGame, submitHand, leaveRoom, sendEmoji,
     gameState: { roomId, roomData },
