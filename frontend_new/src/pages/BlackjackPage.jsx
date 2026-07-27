@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useBlackjackSocket from '../hooks/useBlackjackSocket';
 import BlackjackLobby from '../components/Game/BlackjackLobby';
@@ -15,6 +15,31 @@ export default function BlackjackPage({ user }) {
   const [activeEmojis, setActiveEmojis] = useState({});
   const [glow, setGlow] = useState(false); 
   const EMOJI_LIST = ['😎', '😭', '🤡', '💸', '😀', '😡', '💩', '🎉'];
+  // ✨BGM 音樂狀態與實體設定
+  const [isBgmPlaying, setIsBgmPlaying] = useState(false);
+  const bgmRef = useRef(new Audio('/audio/The_Felt_Table.mp3'));
+
+  // ✨設定音樂循環播放與離開頁面自動清理
+  useEffect(() => {
+    const audio = bgmRef.current;
+    audio.loop = true;
+    audio.volume = 0.4; // 建議音量 40%
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, []);
+
+  // ✨音樂開關函數
+  const toggleBgm = () => {
+    const audio = bgmRef.current;
+    if (isBgmPlaying) {
+      audio.pause();
+    } else {
+      audio.play().catch(e => console.error("音樂播放失敗:", e));
+    }
+    setIsBgmPlaying(!isBgmPlaying);
+  };
 
   // ✨ 1. 新增：計時器相關狀態
   const [timeLeft, setTimeLeft] = useState(null);
@@ -200,7 +225,22 @@ export default function BlackjackPage({ user }) {
         </div>
         
         {/* 右側：規則按鈕 */}
-        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, gap: '6px' }}>
+          
+          {/* ✨ BGM 控制按鈕 (跟鬥牛的樣式完全統一) */}
+          <button 
+            onClick={toggleBgm} 
+            style={{ 
+              padding: '6px 8px', background: isBgmPlaying ? '#4caf50' : '#666',
+              color: 'white', borderRadius: '20px', border: 'none', 
+              fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.85rem',
+              boxShadow: isBgmPlaying ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none',
+              transition: 'all 0.2s'
+            }}
+          >
+            {isBgmPlaying ? '🔊' : '🔇'} BGM
+          </button>
+
           <button onClick={() => setShowRules(true)} style={{ padding: '6px 10px', background: '#2196F3', color: 'white', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.9rem' }}>
             ❓ 規則
           </button>
@@ -212,15 +252,15 @@ export default function BlackjackPage({ user }) {
           background: 'linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0) 100%)',
           padding: '8px 0', marginBottom: '15px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px'
         }}>
-          <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff', textShadow: '1px 1px 2px #000' }}>
-            👉 現在輪到: <span style={{ color: '#00e676', fontSize: '1.2rem' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', textShadow: '1px 1px 2px #000' }}>
+            👉 現在輪到: <span style={{ color: '#00e676', fontSize: '0.8rem' }}>
               {roomData.turn === 'dealer' ? '莊家結算中...' : roomData.turn.split('@')[0]}
             </span>
           </div>
 
           {timeLeft !== null && roomData.turn !== 'dealer' && (
             <div style={{ 
-              fontSize: '1.2rem', fontWeight: 'bold', 
+              fontSize: '0.8rem', fontWeight: 'bold', 
               color: timeLeft <= 5 ? '#ff1744' : '#ffd700',
               textShadow: '1px 1px 2px #000'
             }}>
