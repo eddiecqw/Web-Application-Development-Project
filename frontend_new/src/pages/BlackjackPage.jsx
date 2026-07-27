@@ -16,6 +16,11 @@ export default function BlackjackPage({ user }) {
   const [glow, setGlow] = useState(false); 
   const EMOJI_LIST = ['😎', '😭', '🤡', '💸', '😀', '😡', '💩', '🎉'];
 
+  // ✨ 1. 新增：計時器相關狀態
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [lastTurn, setLastTurn] = useState(null);
+  const [isAutoStanding, setIsAutoStanding] = useState(false);
+
   useEffect(() => {
     const interval = setInterval(() => setGlow(g => !g), 800);
     return () => clearInterval(interval);
@@ -37,6 +42,54 @@ export default function BlackjackPage({ user }) {
     }
   });
 
+  // ✨ 2. 新增：監聽回合改變，重置計時器
+  useEffect(() => {
+    if (roomData?.status === 'playing' && roomData.turn !== lastTurn) {
+      setLastTurn(roomData.turn);
+      setIsAutoStanding(false); // 換人時取消自動停牌狀態
+      
+      // 只要不是輪到系統/莊家自動補牌，就開始倒數
+      if (roomData.turn !== 'dealer') {
+        setTimeLeft(roomData.settings?.timeLimit || 30);
+      } else {
+        setTimeLeft(null);
+      }
+    } else if (roomData?.status !== 'playing') {
+      setTimeLeft(null);
+      setLastTurn(null);
+      setIsAutoStanding(false);
+    }
+  }, [roomData?.status, roomData?.turn, roomData?.settings?.timeLimit, lastTurn]);
+
+  // ✨ 3. 新增：執行倒數計時
+  useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0 || roomData?.status !== 'playing') return;
+    const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, roomData?.status]);
+
+  // ✨ 4. 新增：超時自動強制停牌 (加入 1.5 秒視覺緩衝)
+  const isMyTurn = roomData?.status === 'playing' && roomData?.turn === username;
+  // ✨ 修復陷阱 1：偵測時間到，單純改變 UI 狀態
+  useEffect(() => {
+    if (timeLeft === 0 && isMyTurn && !isAutoStanding) {
+      setIsAutoStanding(true);
+    }
+  }, [timeLeft, isMyTurn, isAutoStanding]);
+
+  // ✨ 修復陷阱 2：獨立的計時器，專門監聽 isAutoStanding
+  useEffect(() => {
+    if (isAutoStanding) {
+      const timer = setTimeout(() => {
+        stand(); // 1.5 秒後執行停牌
+      }, 1500);
+      
+      // 因為這個 useEffect 只有在 isAutoStanding 改變時才會重跑，所以它絕對不會被提前殺死！
+      return () => clearTimeout(timer);
+    }
+  }, [isAutoStanding, stand]);
+
+
   const handleSendEmoji = (emoji) => {
     sendEmoji(emoji);
     setShowEmojiPicker(false);
@@ -54,7 +107,6 @@ export default function BlackjackPage({ user }) {
   const opponents = useMemo(() => roomData?.players.filter(p => p.name !== username) || [], [roomData, username]);
   const dealer = roomData?.dealer;
   const isPlaying = roomData?.status === 'playing' || roomData?.status === 'showdown';
-  const isMyTurn = roomData?.status === 'playing' && roomData?.turn === username;
   
   const isRotateDealer = roomData?.settings?.rotateDealer;
   const notEnoughPlayers = isRotateDealer && roomData?.players?.length < 2;
@@ -119,35 +171,69 @@ export default function BlackjackPage({ user }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#1a4f2c', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#1a4f2c', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px', position: 'relative' }}>
       
-      <header style={{ width: '100%', maxWidth: '900px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', backgroundColor: 'rgba(0,0,0,0.8)', borderRadius: '8px', marginBottom: '10px' }}>
-        <button onClick={handleLeaveGame} style={{ padding: '8px 16px', background: '#dc3545', color: 'white', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>← 離開</button>
-        <div style={{ fontWeight: 'bold', color: '#ffd700', fontSize: '1.2rem' }}>
-          房間: {roomId} {isOwner && '(房主)'}
+      {/* 頂部狀態列 (同步套用鬥牛的防擠壓排版) */}
+      <header style={{ 
+        width: '100%', maxWidth: '900px', display: 'flex', justifyContent: 'space-between', 
+        alignItems: 'center', padding: '10px 5px', backgroundColor: 'rgba(0,0,0,0.3)', 
+        borderRadius: '8px', marginBottom: '10px', gap: '5px' 
+      }}>
+        
+        {/* 左側：離開按鈕 */}
+        <button onClick={handleLeaveGame} style={{ 
+          padding: '6px 10px', background: '#dc3545', color: 'white', 
+          borderRadius: '6px', border: 'none', fontWeight: 'bold', 
+          cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.9rem', flexShrink: 0 
+        }}>
+          ← 離開
+        </button>
+        
+        {/* 中間：房間與房主資訊 (防擠壓) */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, minWidth: 0, margin: '0 5px' }}>
+          <div style={{ fontWeight: 'bold', color: '#ffd700', fontSize: '1rem', whiteSpace: 'nowrap' }}>
+            房間: {roomId}
+          </div>
+          <div style={{ fontSize: '0.8rem', color: '#ffea00', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+            (房主: {isOwner ? '你' : roomData?.owner?.split('@')[0]})
+          </div>
         </div>
         
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', position: 'relative' }}>
-          {roomData?.status === 'playing' && roomData.turn !== 'dealer' && (
-            <span style={{ color: '#00e676', fontWeight: 'bold' }}>輪到: {roomData.turn.split('@')[0]}</span>
-          )}
-          <div style={{ position: 'relative' }}>
-            <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ padding: '6px 12px', background: '#ff9800', color: 'white', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>😀 表情</button>
-            {showEmojiPicker && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '10px', background: 'white', padding: '10px', borderRadius: '12px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 100 }}>
-                {EMOJI_LIST.map(e => <button key={e} onClick={() => handleSendEmoji(e)} style={{ fontSize: '1.5rem', background: 'transparent', border: 'none', cursor: 'pointer', padding: '5px' }}>{e}</button>)}
-              </div>
-            )}
-          </div>
-          <button onClick={() => setShowRules(true)} style={{ padding: '6px 12px', background: '#2196F3', color: 'white', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>❓ 規則</button>
+        {/* 右側：規則按鈕 */}
+        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+          <button onClick={() => setShowRules(true)} style={{ padding: '6px 10px', background: '#2196F3', color: 'white', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.9rem' }}>
+            ❓ 規則
+          </button>
         </div>
       </header>
+      {roomData?.status === 'playing' && (
+        <div style={{
+          width: '100%', maxWidth: '900px', 
+          background: 'linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0) 100%)',
+          padding: '8px 0', marginBottom: '15px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px'
+        }}>
+          <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff', textShadow: '1px 1px 2px #000' }}>
+            👉 現在輪到: <span style={{ color: '#00e676', fontSize: '1.2rem' }}>
+              {roomData.turn === 'dealer' ? '莊家結算中...' : roomData.turn.split('@')[0]}
+            </span>
+          </div>
+
+          {timeLeft !== null && roomData.turn !== 'dealer' && (
+            <div style={{ 
+              fontSize: '1.2rem', fontWeight: 'bold', 
+              color: timeLeft <= 5 ? '#ff1744' : '#ffd700',
+              textShadow: '1px 1px 2px #000'
+            }}>
+              ⏱️ {timeLeft}s
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ width: '100%', maxWidth: '900px', flex: 1, background: 'radial-gradient(circle, #226b3a 0%, #11361c 100%)', border: '10px solid #4a2e15', borderRadius: '20px', padding: '20px', boxShadow: 'inset 0 0 50px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         
-        {/* 1. 中央區域 (系統莊家 或 等待開始按鈕) */}
+        {/* 中央區域 */}
         <div style={{ textAlign: 'center', color: 'white', minHeight: roomData?.status === 'waiting' ? '150px' : '20px' }}>
-          {/* ✨ 只有當莊家是「System」時，才在最上方顯示手牌 */}
           {isPlaying && roomData.dealerName === 'System' && (
             <>
               <h3 style={{ margin: '0 0 10px 0', color: '#ffd700' }}>👑 系統莊家</h3>
@@ -185,10 +271,9 @@ export default function BlackjackPage({ user }) {
           )}
         </div>
 
-        {/* 2. 對手區域 */}
+        {/* 對手區域 */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', flexWrap: 'wrap', minHeight: '120px' }}>
           {opponents.map((opp) => {
-            // ✨ 動態判定這個對手是不是莊家，如果是，就把 dealer 的牌給他
             const isThisOppDealer = roomData.dealerName === opp.name;
             const oppHand = isThisOppDealer ? dealer?.hand : opp.hand;
             const oppScore = isThisOppDealer ? dealer?.score : opp.score;
@@ -221,7 +306,7 @@ export default function BlackjackPage({ user }) {
           })}
         </div>
 
-        {/* 3. 玩家自己的區域 */}
+        {/* 玩家自己的區域 */}
         {me && (
           <div style={{ textAlign: 'center', color: 'white', background: 'rgba(0,0,0,0.4)', padding: '15px', borderRadius: '15px', border: isMyTurn ? '3px solid #00e676' : (amIDealer ? '2px solid #ffd700' : '2px solid transparent'), position: 'relative' }}>
             {renderEmojiBubble(me.name)}
@@ -231,7 +316,6 @@ export default function BlackjackPage({ user }) {
             </h2>
             
             <div style={{ display: 'flex', justifyContent: 'center', paddingLeft: '15px', minHeight: '100px' }}>
-              {/* ✨ 如果自己是莊家，直接顯示 dealer 的牌 */}
               {roomData.status === 'waiting' 
                 ? [0, 1].map(idx => renderCard(null, idx, true))
                 : (amIDealer ? dealer?.hand : me.hand)?.map((card, idx) => renderCard(card, idx))
@@ -252,7 +336,6 @@ export default function BlackjackPage({ user }) {
               )
             )}
 
-            {/* ✨ 彌補莊家不能操作的 UX 提示 */}
             {amIDealer && isPlaying && (
               <div style={{ marginTop: '15px', color: '#ffd700', fontSize: '1.1rem', fontWeight: 'bold', textShadow: '1px 1px 2px black' }}>
                 {roomData.turn === 'dealer' 
@@ -261,7 +344,15 @@ export default function BlackjackPage({ user }) {
               </div>
             )}
 
-            {isMyTurn && !amIDealer && (
+            {/* ✨ 超時狀態提示 */}
+            {isAutoStanding && (
+              <div style={{ color: '#ff1744', marginTop: '15px', fontSize: '1.1rem', fontWeight: 'bold' }}>
+                ⏰ 思考時間到！系統即將強制停牌...
+              </div>
+            )}
+
+            {/* ✨ 只有在未超時的狀態下，才顯示操作按鈕 */}
+            {isMyTurn && !amIDealer && !isAutoStanding && (
               <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '15px', flexWrap: 'wrap' }}>
                 <button onClick={() => hit()} style={{ background: '#4caf50', color: 'white', padding: '10px 20px', borderRadius: '25px', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>👉 要牌 (Hit)</button>
                 <button onClick={() => stand()} style={{ background: '#f44336', color: 'white', padding: '10px 20px', borderRadius: '25px', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>✋ 停牌 (Stand)</button>
@@ -271,7 +362,44 @@ export default function BlackjackPage({ user }) {
         )}
       </div>
 
-      {/* 規則彈窗 (略) */}
+      {/* ✨ 右下角懸浮表情按鈕 (Floating Action Button) - 同步鬥牛樣式 */}
+      <div style={{ position: 'fixed', bottom: '25px', right: '25px', zIndex: 100 }}>
+        {showEmojiPicker && (
+          <div style={{
+            position: 'absolute', bottom: '100%', right: 0, marginBottom: '15px',
+            background: 'white', padding: '10px', borderRadius: '12px',
+            display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+          }}>
+            {EMOJI_LIST.map(e => (
+              <button 
+                key={e} onClick={() => handleSendEmoji(e)}
+                style={{ fontSize: '1.8rem', background: 'transparent', border: 'none', cursor: 'pointer', padding: '5px', borderRadius: '8px', transition: 'background 0.2s' }}
+                onMouseOver={(e) => e.target.style.background = '#f0f0f0'}
+                onMouseOut={(e) => e.target.style.background = 'transparent'}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
+        <button 
+          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+          style={{ 
+            width: '60px', height: '60px', borderRadius: '30px', 
+            background: '#ff9800', color: 'white', border: 'none', 
+            fontSize: '2rem', display: 'flex', justifyContent: 'center', alignItems: 'center',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.5)', cursor: 'pointer',
+            transition: 'transform 0.2s'
+          }}
+          onMouseOver={(e) => e.target.style.transform = 'scale(1.1)'}
+          onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+        >
+          😀
+        </button>
+      </div>
+
+      {/* 規則彈窗 */}
       {showRules && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ background: '#1a4f2c', border: '4px solid #ffd700', borderRadius: '15px', padding: '25px', maxWidth: '500px', width: '90%', color: 'white', position: 'relative', maxHeight: '80vh', overflowY: 'auto' }}>

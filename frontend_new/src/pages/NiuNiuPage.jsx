@@ -123,7 +123,7 @@ export default function NiuNiuPage({ user }) {
       setSelectedIndices([]);
       setIsNoNiu(false);
       setManualResult(null);
-      setTimeLeft(roomData.timeLimit);
+      setTimeLeft(roomData.settings?.timeLimit || 30);
       
       if (me?.hand) {
         const special = evaluateHandLocal(me.hand);
@@ -194,6 +194,26 @@ export default function NiuNiuPage({ user }) {
     const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [timeLeft, roomData?.status]);
+
+  // ✨ 鬥牛修復 1：偵測時間到，單純改變 UI 狀態 (避免計時器被 React 謀殺)
+  useEffect(() => {
+    if (timeLeft === 0 && roomData?.status === 'playing' && !me?.isReady && !isNoNiu) {
+      setMsg('⏰ 時間到！系統將強制以「無牛」交卷...');
+      setMsgColor('#ff1744');
+      setIsNoNiu(true); 
+    }
+  }, [timeLeft, roomData?.status, me?.isReady, isNoNiu]);
+
+  // ✨ 鬥牛修復 2：獨立的計時器，當系統自動標記 isNoNiu 時啟動
+  useEffect(() => {
+    // 確保是「時間到」且「還沒交卷」才自動送出 (防止玩家手動按無牛時也被觸發)
+    if (isNoNiu && timeLeft === 0 && roomData?.status === 'playing' && !me?.isReady) {
+      const timer = setTimeout(() => {
+        submitHand({ manualResult: { type: '無牛', weight: 0 } });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isNoNiu, timeLeft, roomData?.status, me?.isReady, submitHand]);
 
   const toggleCardSelection = (index) => {
     if (!isPlaying || me?.isReady || manualResult?.weight >= 800 || isNoNiu) return;
