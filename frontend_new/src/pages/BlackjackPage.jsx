@@ -186,11 +186,9 @@ export default function BlackjackPage({ user }) {
 
   if (!roomId) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ width: '100%', maxWidth: '800px', marginBottom: '16px' }}>
-          <button onClick={() => navigate('/')} style={{ padding: '8px 16px', background: '#dc3545', color: 'white', borderRadius: '4px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>← 返回聊天室</button>
-        </div>
-        <BlackjackLobby onCreateRoom={createRoom} onJoinRoom={joinRoom} />
+      // ✨ 統一採用深色背景
+      <div style={{ minHeight: '100vh', backgroundColor: '#121212', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
+        <BlackjackLobby onCreateRoom={createRoom} onJoinRoom={joinRoom} onBack={() => navigate('/')} />
       </div>
     );
   }
