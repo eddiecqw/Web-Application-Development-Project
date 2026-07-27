@@ -33,7 +33,12 @@ export default function useGameSocket(url, eventHandlers = {}) {
 
     ws.current.onmessage = (event) => {
       try {
-        const { type, data } = JSON.parse(event.data);
+        const parsed = JSON.parse(event.data);
+        
+        // ✨ 加上防護罩：如果是陣列 (聊天紀錄) 或是不是 GAME_ 開頭的事件，直接略過！
+        if (Array.isArray(parsed) || !parsed.type?.startsWith('GAME_')) return;
+
+        const { type, data } = parsed;
         console.log('📦 WebSocket 收到事件:', type, data); 
 
         switch (type) {
