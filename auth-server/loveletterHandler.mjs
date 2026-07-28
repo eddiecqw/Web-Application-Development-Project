@@ -154,8 +154,8 @@ export function handleLoveLetterMessage(ws, type, data, wss, callbacks) {
         id: newRoomId, owner: username, status: 'waiting', 
         settings: { winTokens: data.winTokens || 4 },
         deck: [], removedCard: null, turnIndex: 0, turn: null, actionLog: '', winner: null,
-        // ✨ 加入 discarded 陣列
-        players: [{ name: username, tokens: 0, hand: [], discarded: [], isAlive: true, isProtected: false }]
+        // ✨ 新增 nickname 欄位
+        players: [{ name: username, nickname: data.nickname || username.split('@')[0], tokens: 0, hand: [], discarded: [], isAlive: true, isProtected: false }]
       };
       ws.send(JSON.stringify({ type: 'LL_ROOM_CREATED', data: { roomId: newRoomId, room: loveletterRooms[newRoomId] } }));
       if (callbacks && callbacks.onRoomCreated) callbacks.onRoomCreated(newRoomId, '情書 (Love Letter)');
@@ -168,7 +168,8 @@ export function handleLoveLetterMessage(ws, type, data, wss, callbacks) {
       if (room.status !== 'waiting') return ws.send(JSON.stringify({ type: 'LL_ERROR', data: { message: '遊戲進行中，無法加入' } }));
       ws._llRoomId = roomId;
       if (!room.players.some(p => p.name === username)) {
-        room.players.push({ name: username, tokens: 0, hand: [], discarded: [], isAlive: true, isProtected: false });
+        // ✨ 新增 nickname 欄位
+        room.players.push({ name: username, nickname: data.nickname || username.split('@')[0], tokens: 0, hand: [], discarded: [], isAlive: true, isProtected: false });
       }
       broadcastToRoom(roomId, 'LL_PLAYER_JOINED', wss);
       break;
