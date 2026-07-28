@@ -31,10 +31,9 @@ export default function LoveLetterPage({ user }) {
   const [showGuessModal, setShowGuessModal] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState(null);
 
-  // ✨ 動態日誌狀態
+  // 動態日誌與歷史紀錄狀態
   const [showLogModal, setShowLogModal] = useState(false);
   const [currentLog, setCurrentLog] = useState('');
-  // ✨ 新增：儲存本局所有歷史日誌的陣列
   const [logHistory, setLogHistory] = useState([]);
 
   const [isBgmPlaying, setIsBgmPlaying] = useState(false);
@@ -65,20 +64,19 @@ export default function LoveLetterPage({ user }) {
     }
   });
 
-  // ✨ 核心升級：監聽日誌變化，自動記錄歷史並在超長時彈窗
+  // 監聽日誌變化，自動記錄歷史並在超長時彈窗
   useEffect(() => {
     if (roomData?.actionLog && roomData.actionLog !== currentLog) {
       setCurrentLog(roomData.actionLog);
       
-      // 將新動態加入歷史紀錄中
       setLogHistory(prev => {
-        // 如果是新的一局開始，清空前面的紀錄
         if (roomData.actionLog === '遊戲開始！') {
           return [roomData.actionLog];
         }
         return [...prev, roomData.actionLog];
       });
 
+      // 如果文字太長，自動彈出完整的歷史紀錄視窗讓玩家看清楚
       if (roomData.actionLog.length > 15) {
         setShowLogModal(true);
       }
@@ -148,37 +146,42 @@ export default function LoveLetterPage({ user }) {
     setSelectedTarget(null);
   };
 
-  const renderCard = (card, onClick, disabled = false, isPlaceholder = false) => {
+  // 確保 keyIndex 參數存在，解決 React 渲染警告
+  const renderCard = (card, onClick, disabled = false, isPlaceholder = false, keyIndex = 'default') => {
+    
     if (isPlaceholder || !card || card.isHidden) {
       return (
-        <div style={{
-          width: '70px', height: '100px', margin: '0 5px', borderRadius: '8px',
-          background: 'repeating-linear-gradient(45deg, #7f1d1d, #7f1d1d 10px, #991b1b 10px, #991b1b 20px)',
-          border: '2px solid #fcd34d', boxShadow: '2px 2px 8px rgba(0,0,0,0.5)', position: 'relative'
-        }}>
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: '#fcd34d', fontSize: '1.5rem' }}>💌</div>
-        </div>
+        <img 
+          key={keyIndex}
+          src="/image/loveletter/card_back.jpg" 
+          alt="Card Back"
+          style={{
+            width: '70px', height: '100px', margin: '0 5px', borderRadius: '8px',
+            border: '2px solid #fcd34d', boxShadow: '2px 2px 8px rgba(0,0,0,0.5)',
+            objectFit: 'cover'
+          }}
+        />
       );
     }
+    
     return (
-      <div 
+      <img 
+        key={keyIndex}
+        src={`/image/loveletter/card_${card.value}.jpg`} 
+        alt={card.name}
         onClick={() => !disabled && onClick && onClick(card)}
         style={{
           width: '70px', height: '100px', margin: '0 5px', borderRadius: '8px',
-          backgroundColor: '#fffbeb', color: '#7f1d1d',
-          display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
-          fontWeight: 'bold', border: disabled ? '2px solid #ccc' : '2px solid #b45309',
-          boxShadow: '2px 2px 8px rgba(0,0,0,0.5)', position: 'relative',
+          border: disabled ? '2px solid #ccc' : '2px solid #b45309',
+          boxShadow: '2px 2px 8px rgba(0,0,0,0.5)',
+          objectFit: 'cover',
           cursor: disabled ? 'not-allowed' : (onClick ? 'pointer' : 'default'),
           opacity: disabled ? 0.6 : 1, transition: 'transform 0.1s',
           transform: (onClick && !disabled) ? 'translateY(-5px)' : 'none'
         }}
         onMouseOver={e => { if (onClick && !disabled) e.currentTarget.style.transform = 'translateY(-10px)'; }}
         onMouseOut={e => { if (onClick && !disabled) e.currentTarget.style.transform = 'translateY(-5px)'; }}
-      >
-        <div style={{ position: 'absolute', top: '2px', left: '6px', fontSize: '1.2rem' }}>{card.value}</div>
-        <div style={{ fontSize: '1.1rem', marginTop: '10px' }}>{card.name}</div>
-      </div>
+      />
     );
   };
 
@@ -216,7 +219,7 @@ export default function LoveLetterPage({ user }) {
         <button onClick={handleLeaveGame} style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>← 離開</button>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontWeight: 'bold', color: '#fcd34d', fontSize: '0.95rem' }}>房間: {roomId}</div>
-          <div style={{ fontSize: '0.75rem', color: '#d1d5db' }}>(目標: {roomData.settings.winTokens} 個指示物)</div>
+          <div style={{ fontSize: '0.75rem', color: '#d1d5db' }}>(目標: {roomData.settings.winTokens} 個)</div>
         </div>
         <div style={{ display: 'flex', gap: '5px' }}>
           <button onClick={toggleBgm} style={{ padding: '4px 8px', background: isBgmPlaying ? '#dc2626' : '#4b5563', color: 'white', borderRadius: '4px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>{isBgmPlaying ? '🔊' : '🔇'}</button>
@@ -230,20 +233,19 @@ export default function LoveLetterPage({ user }) {
         {isPlaying && (
           <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 5, textAlign: 'center', background: 'rgba(0,0,0,0.5)', padding: '5px', borderRadius: '8px', border: '1px solid #b45309', transform: 'scale(0.75)', transformOrigin: 'top right' }}>
             <div style={{ color: '#d1d5db', fontSize: '0.7rem', marginBottom: '3px' }}>牌庫</div>
-            {renderCard(null, null, false, true)}
+            {renderCard(null, null, false, true, 'deck-placeholder')}
             <div style={{ color: '#fcd34d', fontWeight: 'bold', fontSize: '0.8rem', marginTop: '3px' }}>{roomData.deckCount || 0} 張</div>
           </div>
         )}
 
-        {/* ✨ 升級 1：中央行動日誌 (移至 top 62% 與大幅調高 zIndex) */}
-        <div style={{ position: 'absolute', top: '62%', left: '50%', transform: 'translate(-50%, -50%)', width: '85%', textAlign: 'center', zIndex: 30 }}>
+        {/* 🎯 完美定位：日誌下移至 top: 56%，徹底避開對手卡牌 */}
+        <div style={{ position: 'absolute', top: '56%', left: '50%', transform: 'translate(-50%, -50%)', width: '85%', textAlign: 'center', zIndex: 30 }}>
           {!isPlaying && roomData.status === 'waiting' ? (
             isOwner ? (
               <button onClick={() => startGame()} style={{ padding: '10px 20px', background: 'linear-gradient(to bottom, #fcd34d, #d97706)', color: '#450a0a', border: 'none', borderRadius: '25px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>✉️ 發送情書</button>
             ) : <div style={{ color: '#d1d5db', fontSize: '0.9rem' }}>等待房主開始...</div>
           
           ) : roomData.status === 'game_over' ? (
-            // ✨ 新增：整場遊戲結束時的專屬面板
             <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '12px', background: 'rgba(0,0,0,0.9)', padding: '20px 30px', borderRadius: '15px', border: '2px solid #fcd34d', boxShadow: '0 4px 15px rgba(0,0,0,0.8)' }}>
               <div style={{ color: '#fcd34d', fontWeight: 'bold', fontSize: '1.1rem' }}>🎉 遊戲結束！</div>
               <div style={{ color: '#fff', fontSize: '1rem' }}>【{roomData.winner.split('@')[0]}】贏得了公主的芳心！</div>
@@ -256,9 +258,7 @@ export default function LoveLetterPage({ user }) {
                 <div style={{ color: '#9ca3af', fontSize: '0.9rem', marginTop: '5px' }}>等待房主重新開始...</div>
               )}
             </div>
-
           ) : (
-            // 一般遊玩中的膠囊日誌
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.7)', padding: '6px 12px', borderRadius: '20px', color: '#fcd34d', fontWeight: 'bold', fontSize: '0.85rem', border: '1px solid #7f1d1d', boxShadow: '0 4px 6px rgba(0,0,0,0.5)' }}>
               <span style={{ display: 'inline-block', maxWidth: '140px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {roomData.actionLog}
@@ -281,7 +281,8 @@ export default function LoveLetterPage({ user }) {
             <div style={{ color: '#fca5a5', fontSize: '0.7rem', marginBottom: '5px' }}>{'❤️'.repeat(opp.tokens)}</div>
             
             <div style={{ display: 'flex', justifyContent: 'center', transform: 'scale(0.8)', margin: '-10px 0' }}>
-              {opp.isAlive ? opp.hand?.map((c, i) => renderCard(c, null, false, false)) : <div style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '10px' }}>💀</div>}
+              {/* ✨ 加上 keyIndex 綁定 */}
+              {opp.isAlive ? opp.hand?.map((c, i) => renderCard(c, null, false, false, `opp-${opp.name}-${i}`)) : <div style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '10px' }}>💀</div>}
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '2px', marginTop: '5px' }}>
@@ -303,7 +304,8 @@ export default function LoveLetterPage({ user }) {
             </div>
             
             <div style={{ display: 'flex', justifyContent: 'center', minHeight: '100px', transform: 'scale(0.95)' }}>
-              {me.isAlive ? me.hand?.map((c, i) => renderCard(c, handleCardClick, mustPlayCountess && c.value !== 7, false)) : <div style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '30px' }}>💀 已出局</div>}
+              {/* ✨ 加上 keyIndex 綁定 */}
+              {me.isAlive ? me.hand?.map((c, i) => renderCard(c, handleCardClick, mustPlayCountess && c.value !== 7, false, `me-${i}`)) : <div style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '30px' }}>💀 已出局</div>}
             </div>
 
             {me.discarded?.length > 0 && (
@@ -319,7 +321,7 @@ export default function LoveLetterPage({ user }) {
         )}
       </div>
 
-      {/* ✨ 升級 2：顯示本局「所有動態」的歷史紀錄彈窗 (由新到舊排列) */}
+      {/* 📜 本局「所有動態」歷史紀錄彈窗 */}
       {showLogModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 150 }}>
           <div style={{ background: '#2d0c0c', padding: '25px', borderRadius: '15px', border: '2px solid #fcd34d', textAlign: 'center', color: 'white', maxWidth: '350px', width: '85%', display: 'flex', flexDirection: 'column', maxHeight: '70vh' }}>
@@ -391,7 +393,8 @@ export default function LoveLetterPage({ user }) {
             <h2 style={{ color: '#60a5fa', marginTop: 0 }}>👁️ 神父的啟示</h2>
             <p>你看到了對手的手牌是：</p>
             <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}>
-              {privateInfo.hand.map((c, i) => renderCard(c, null, false, false))}
+              {/* ✨ 加上 keyIndex 綁定 */}
+              {privateInfo.hand.map((c, i) => renderCard(c, null, false, false, `private-${i}`))}
             </div>
             <button onClick={clearPrivateInfo} style={{ padding: '10px 30px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '25px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem' }}>我記住了</button>
           </div>
