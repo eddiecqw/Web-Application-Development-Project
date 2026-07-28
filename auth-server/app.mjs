@@ -4,6 +4,8 @@ import { WebSocketServer } from 'ws';
 import { handleNiuNiuMessage, niuniuRooms, cleanupNiuNiuConnection } from './niuniuHandler.mjs';
 // ✨ 新增 21 點模組
 import { handleBlackjackMessage, blackjackRooms, cleanupBlackjackConnection } from './blackjackHandler.mjs';
+// ✨ 新增 Love Letter 模組
+import { handleLoveLetterMessage, loveletterRooms, cleanupLoveLetterConnection } from './loveletterHandler.mjs';
 import cors from 'cors';
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
@@ -146,6 +148,22 @@ app.get('/api/blackjack-rooms', (req, res) => {
   }
 });
 
+// ✨ 新增 Love Letter 專屬 API
+app.get('/api/loveletter-rooms', (req, res) => {
+  try {
+    const rooms = Object.values(loveletterRooms).map(room => ({
+      roomId: room.id,
+      playerCount: room.players.length,
+      winTokens: room.settings.winTokens,
+      status: room.status,
+      owner: room.owner
+    }));
+    res.json({ success: true, rooms });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 function broadcastSystemStatus() {
   const totalOnline = Object.keys(connections).length;
   const mapUsers = Object.values(connections).filter(conn => conn._location).length;
@@ -250,6 +268,28 @@ wsServer.on('connection', async (connection, request) => {
         }
       };
       handleBlackjackMessage(connection, type, data, wsServer, callbacks);
+      return; 
+    }
+
+    // ✨ 新增：攔截並處理 Love Letter 的事件
+    if (type && type.startsWith('LL_')) {
+      data.username = connection._username || data.username; 
+      
+      const callbacks = {
+        onRoomCreated: async (newRoomId, gameName) => {
+          const systemMessage = {
+            sender: 'System',
+            content: `💌 ${gameName} 房間 [${newRoomId}] 已創建，快來拆開情書吧！`,
+            timestamp: new Date(),
+            type: 'system'
+          };
+          try { await db.collection('ChatMessages').insertOne(systemMessage); } catch (e) {}
+          Object.values(connections).forEach((conn) => {
+            if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage]));
+          });
+        }
+      };
+      handleLoveLetterMessage(connection, type, data, wsServer, callbacks);
       return; 
     }
 
@@ -524,9 +564,12 @@ wsServer.on('connection', async (connection, request) => {
 
   connection.on('close', () => {
     if (connection._username) {
+      // ✨ 新增：斷線時清理牛牛房間
       cleanupNiuNiuConnection(connection._username, connection._niuniuRoomId, wsServer);
       // ✨ 新增 21 點的斷線清理
       cleanupBlackjackConnection(connection._username, connection._bjRoomId, wsServer);
+      // ✨ 新增 Love Letter 的斷線清理
+      cleanupLoveLetterConnection(connection._username, connection._llRoomId, wsServer);
     }
     const roomId = connection._roomId;
     const playerId = connection._playerId;
