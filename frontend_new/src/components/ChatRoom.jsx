@@ -237,6 +237,23 @@ export function Home({ username ,onLogout}) {
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', margin: '15px 0' }}>
           <Link to="/blackjack"><button className="nav-button">🎰 21點 Blackjack</button></Link>
           <Link to="/niuniu"><button className="nav-button">🃏 撲克鬥牛</button></Link>
+          {/* 💌 加入情書的華麗宮廷風按鈕 */}
+          <button
+            onClick={() => navigate('/loveletter')}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', 
+              padding: '10px 18px', // 配合其他 nav-button 的高度
+              background: 'linear-gradient(135deg, #7f1d1d 0%, #4a0404 100%)',
+              color: '#fcd34d', border: '1px solid #b45309', borderRadius: '12px',
+              fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer',
+              boxShadow: '0 4px 10px rgba(0,0,0,0.3)', transition: 'all 0.2s ease', 
+              textShadow: '1px 1px 2px rgba(0,0,0,0.8)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 6px 15px rgba(0,0,0,0.5)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)'; }}
+          >
+            <span style={{ fontSize: '1.2rem' }}>💌</span> 情書
+          </button>
           <Link to="/map"><button className="nav-button">🌏 View Map</button></Link>
           <Link to="/draw-guess"><button className="nav-button">🎨 Start Drawing Game</button></Link>
         </div>

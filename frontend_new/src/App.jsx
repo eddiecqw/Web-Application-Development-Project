@@ -6,6 +6,7 @@ import Register from './components/Register';
 import DrawGuessPage from './pages/DrawGuessPage';
 import NiuNiuPage from './pages/NiuNiuPage';
 import BlackjackPage from './pages/BlackjackPage';
+import LoveLetterPage from './pages/LoveLetterPage';
 import { Home } from './components/ChatRoom'; 
 import MapComponent from './components/MapComponent';
 import './App.css';
@@ -88,6 +89,10 @@ const App = () => {
           <Route 
             path="/blackjack" 
             element={user ? <BlackjackPage user={user} /> : <Navigate to="/login" replace />} 
+          />
+          <Route 
+            path="/loveletter" 
+            element={user ? <LoveLetterPage user={user} /> : <Navigate to="/login" replace />} 
           />
           <Route 
             path="/map" 
