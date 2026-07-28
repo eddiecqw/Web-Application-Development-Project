@@ -37,7 +37,7 @@ export default function LoveLetterPage({ user }) {
   const [logHistory, setLogHistory] = useState([]);
 
   const [isBgmPlaying, setIsBgmPlaying] = useState(false);
-  const bgmRef = useRef(new Audio('/audio/Court_Music.mp3')); 
+  const bgmRef = useRef(new Audio('/audio/Sealed_With_A_Wax_Crest.mp3'));
 
   useEffect(() => {
     const audio = bgmRef.current;
