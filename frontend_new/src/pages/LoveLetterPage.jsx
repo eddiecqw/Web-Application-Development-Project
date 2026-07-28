@@ -54,7 +54,7 @@ export default function LoveLetterPage({ user }) {
   };
 
   const {
-    createRoom, joinRoom, startGame, playCard, leaveRoom, sendEmoji, clearPrivateInfo,
+    createRoom, joinRoom, startGame, playCard, leaveRoom, sendEmoji, clearPrivateInfo, restartGame,
     gameState: { roomId, roomData, privateInfo }
   } = useLoveLetterSocket(wsUrl, {
     LL_SHOW_EMOJI: (data) => {
@@ -241,10 +241,27 @@ export default function LoveLetterPage({ user }) {
             isOwner ? (
               <button onClick={() => startGame()} style={{ padding: '10px 20px', background: 'linear-gradient(to bottom, #fcd34d, #d97706)', color: '#450a0a', border: 'none', borderRadius: '25px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>✉️ 發送情書</button>
             ) : <div style={{ color: '#d1d5db', fontSize: '0.9rem' }}>等待房主開始...</div>
+          
+          ) : roomData.status === 'game_over' ? (
+            // ✨ 新增：整場遊戲結束時的專屬面板
+            <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '12px', background: 'rgba(0,0,0,0.9)', padding: '20px 30px', borderRadius: '15px', border: '2px solid #fcd34d', boxShadow: '0 4px 15px rgba(0,0,0,0.8)' }}>
+              <div style={{ color: '#fcd34d', fontWeight: 'bold', fontSize: '1.1rem' }}>🎉 遊戲結束！</div>
+              <div style={{ color: '#fff', fontSize: '1rem' }}>【{roomData.winner.split('@')[0]}】贏得了公主的芳心！</div>
+              
+              {isOwner ? (
+                <button onClick={() => restartGame()} style={{ marginTop: '5px', padding: '10px 20px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>
+                  🔄 再來一局
+                </button>
+              ) : (
+                <div style={{ color: '#9ca3af', fontSize: '0.9rem', marginTop: '5px' }}>等待房主重新開始...</div>
+              )}
+            </div>
+
           ) : (
+            // 一般遊玩中的膠囊日誌
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.7)', padding: '6px 12px', borderRadius: '20px', color: '#fcd34d', fontWeight: 'bold', fontSize: '0.85rem', border: '1px solid #7f1d1d', boxShadow: '0 4px 6px rgba(0,0,0,0.5)' }}>
               <span style={{ display: 'inline-block', maxWidth: '140px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {roomData.status === 'game_over' ? `🎉 遊戲結束！【${roomData.winner.split('@')[0]}】獲勝！` : roomData.actionLog}
+                {roomData.actionLog}
               </span>
               <button onClick={() => setShowLogModal(true)} style={{ padding: '2px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.75rem', cursor: 'pointer', flexShrink: 0 }}>
                 紀錄
