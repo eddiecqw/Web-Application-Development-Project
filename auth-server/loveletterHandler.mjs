@@ -192,6 +192,28 @@ export function handleLoveLetterMessage(ws, type, data, wss, callbacks) {
       break;
     }
 
+    case 'LL_RESTART_GAME': {
+      const room = loveletterRooms[roomId];
+      if (!room || room.owner !== username) return; // 只有房主能重新開始
+
+      room.status = 'waiting';
+      room.winner = null;
+      room.actionLog = '準備開始新的一局...';
+      room.deck = [];
+      room.removedCard = null;
+      
+      room.players.forEach(p => {
+        p.tokens = 0; // 好感度歸零
+        p.hand = [];
+        p.discarded = [];
+        p.isAlive = true;
+        p.isProtected = false;
+      });
+
+      broadcastToRoom(roomId, 'LL_ROUND_ENDED', wss); // 廣播讓前端回到等待畫面
+      break;
+    }
+
     case 'LL_PLAY_CARD': {
       const room = loveletterRooms[roomId];
       if (!room || room.status !== 'playing' || room.turn !== username) return;
