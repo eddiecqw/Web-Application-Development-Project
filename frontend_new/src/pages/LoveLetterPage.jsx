@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import useLoveLetterSocket from '../hooks/useLoveLetterSocket';
 import LoveLetterLobby from '../components/Game/LoveLetterLobby';
 
-// 定義卡牌資訊 (供 UI 渲染與衛兵猜測使用)
 const CARD_DEFINITIONS = [
   { value: 1, name: '衛兵', count: 5, desc: '猜測一名玩家的手牌，猜中則對方出局。' },
   { value: 2, name: '神父', count: 2, desc: '私下看一名玩家的手牌。' },
@@ -22,21 +21,23 @@ export default function LoveLetterPage({ user }) {
   const baseWsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:53840/ws';
   const wsUrl = `${baseWsUrl}?username=${encodeURIComponent(username)}`;
 
-  // UI 狀態
   const [showRules, setShowRules] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeEmojis, setActiveEmojis] = useState({});
   const EMOJI_LIST = ['🧐', '🤫', '😱', '😈', '🤡', '😡', '🛡️', '👑'];
 
-  // 卡牌操作狀態
   const [pendingCard, setPendingCard] = useState(null); 
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [showGuessModal, setShowGuessModal] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState(null);
 
-  // BGM 控制
+  // ✨ 動態日誌狀態
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [currentLog, setCurrentLog] = useState('');
+  // ✨ 新增：儲存本局所有歷史日誌的陣列
+  const [logHistory, setLogHistory] = useState([]);
+
   const [isBgmPlaying, setIsBgmPlaying] = useState(false);
-  // ✨ 建議你可以找一首中世紀宮廷風的音樂放進 audio 資料夾
   const bgmRef = useRef(new Audio('/audio/Court_Music.mp3')); 
 
   useEffect(() => {
@@ -64,6 +65,26 @@ export default function LoveLetterPage({ user }) {
     }
   });
 
+  // ✨ 核心升級：監聽日誌變化，自動記錄歷史並在超長時彈窗
+  useEffect(() => {
+    if (roomData?.actionLog && roomData.actionLog !== currentLog) {
+      setCurrentLog(roomData.actionLog);
+      
+      // 將新動態加入歷史紀錄中
+      setLogHistory(prev => {
+        // 如果是新的一局開始，清空前面的紀錄
+        if (roomData.actionLog === '遊戲開始！') {
+          return [roomData.actionLog];
+        }
+        return [...prev, roomData.actionLog];
+      });
+
+      if (roomData.actionLog.length > 15) {
+        setShowLogModal(true);
+      }
+    }
+  }, [roomData?.actionLog, currentLog]);
+
   const handleLeaveGame = () => {
     if (window.confirm("⚠️ 確定要離開宮廷嗎？")) {
       leaveRoom();
@@ -71,26 +92,22 @@ export default function LoveLetterPage({ user }) {
     }
   };
 
-  // 衍生狀態計算
   const isOwner = roomData?.owner === username;
   const me = useMemo(() => roomData?.players.find(p => p.name === username), [roomData, username]);
   const opponents = useMemo(() => roomData?.players.filter(p => p.name !== username) || [], [roomData, username]);
   const isPlaying = roomData?.status === 'playing' || roomData?.status === 'showdown';
   const isMyTurn = roomData?.status === 'playing' && roomData?.turn === username && me?.isAlive;
 
-  // 🚨 伯爵夫人強制出牌檢查
   const hasCountess = me?.hand?.some(c => c.value === 7);
   const hasKingOrPrince = me?.hand?.some(c => c.value === 5 || c.value === 6);
   const mustPlayCountess = hasCountess && hasKingOrPrince;
 
-  // 取得合法目標 (排除出局者、受侍女保護者)
   const getValidTargets = (cardValue) => {
     let targets = opponents.filter(p => p.isAlive && !p.isProtected);
-    if (cardValue === 5) targets.push(me); // 王子可以指定自己
+    if (cardValue === 5) targets.push(me); 
     return targets;
   };
 
-  // 點擊手牌發動邏輯
   const handleCardClick = (card) => {
     if (!isMyTurn) return;
     if (mustPlayCountess && card.value !== 7) {
@@ -103,31 +120,27 @@ export default function LoveLetterPage({ user }) {
     if (needsTarget) {
       const validTargets = getValidTargets(card.value);
       if (validTargets.length === 0) {
-        // 如果所有人都無敵，只能空放 (空放不發動效果)
         playCard(card.value, null, null);
       } else {
         setPendingCard(card);
         setShowTargetModal(true);
       }
     } else {
-      // 不需要目標的牌 (4, 7, 8) 直接打出
       playCard(card.value, null, null);
     }
   };
 
-  // 選擇目標後
   const handleTargetSelect = (targetName) => {
     setShowTargetModal(false);
     if (pendingCard.value === 1) {
       setSelectedTarget(targetName);
-      setShowGuessModal(true); // 衛兵需要多猜一個數字
+      setShowGuessModal(true);
     } else {
       playCard(pendingCard.value, targetName, null);
       setPendingCard(null);
     }
   };
 
-  // 衛兵猜測後
   const handleGuessSelect = (guessValue) => {
     setShowGuessModal(false);
     playCard(pendingCard.value, selectedTarget, guessValue);
@@ -169,123 +182,154 @@ export default function LoveLetterPage({ user }) {
     );
   };
 
+  const getOpponentStyle = (index, total) => {
+    const baseStyle = { 
+      position: 'absolute', zIndex: 10, display: 'flex', flexDirection: 'column', 
+      alignItems: 'center', background: 'rgba(0,0,0,0.4)', padding: '6px', 
+      borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', width: '110px'
+    };
+    if (total === 1) return { ...baseStyle, top: '10px', left: '50%', transform: 'translateX(-50%)' };
+    if (total === 2) {
+      if (index === 0) return { ...baseStyle, top: '35%', left: '8px', transform: 'translateY(-50%)' };
+      if (index === 1) return { ...baseStyle, top: '35%', right: '8px', transform: 'translateY(-50%)' };
+    }
+    if (total === 3) {
+      if (index === 0) return { ...baseStyle, top: '40%', left: '8px', transform: 'translateY(-50%)' };
+      if (index === 1) return { ...baseStyle, top: '10px', left: '50%', transform: 'translateX(-50%)' };
+      if (index === 2) return { ...baseStyle, top: '40%', right: '8px', transform: 'translateY(-50%)' };
+    }
+    return baseStyle;
+  };
+
   if (!roomId) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#121212', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
-        <LoveLetterLobby onCreateRoom={createRoom} onJoinRoom={joinRoom} onBack={() => navigate('/')} />
+        <LoveLetterLobby onCreateRoom={createRoom} onJoinRoom={joinRoom} onBack={() => navigate('/')} username={user.email} />
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#2d0c0c', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#2d0c0c', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '5px' }}>
       
-      {/* 頂部 Header */}
-      <header style={{ width: '100%', maxWidth: '900px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '8px', marginBottom: '10px' }}>
-        <button onClick={handleLeaveGame} style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>← 離開</button>
+      <header style={{ width: '100%', maxWidth: '900px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 10px', backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '8px', marginBottom: '5px' }}>
+        <button onClick={handleLeaveGame} style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>← 離開</button>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 'bold', color: '#fcd34d', fontSize: '1.1rem', letterSpacing: '1px' }}>房間: {roomId}</div>
-          <div style={{ fontSize: '0.8rem', color: '#d1d5db' }}>(目標: {roomData.settings.winTokens} 個指示物)</div>
+          <div style={{ fontWeight: 'bold', color: '#fcd34d', fontSize: '0.95rem' }}>房間: {roomId}</div>
+          <div style={{ fontSize: '0.75rem', color: '#d1d5db' }}>(目標: {roomData.settings.winTokens} 個指示物)</div>
         </div>
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button onClick={toggleBgm} style={{ padding: '6px 10px', background: isBgmPlaying ? '#dc2626' : '#4b5563', color: 'white', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>
-            {isBgmPlaying ? '🔊' : '🔇'} BGM
-          </button>
-          <button onClick={() => setShowRules(true)} style={{ padding: '6px 10px', background: '#2196F3', color: 'white', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>❓ 規則</button>
+        <div style={{ display: 'flex', gap: '5px' }}>
+          <button onClick={toggleBgm} style={{ padding: '4px 8px', background: isBgmPlaying ? '#dc2626' : '#4b5563', color: 'white', borderRadius: '4px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>{isBgmPlaying ? '🔊' : '🔇'}</button>
+          <button onClick={() => setShowRules(true)} style={{ padding: '4px 8px', background: '#2196F3', color: 'white', borderRadius: '4px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>❓</button>
         </div>
       </header>
 
-      {/* 📜 動態日誌橫幅 */}
-      <div style={{ width: '100%', maxWidth: '900px', background: 'linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(127,29,29,0.8) 50%, rgba(0,0,0,0) 100%)', padding: '10px 0', marginBottom: '15px', textAlign: 'center' }}>
-        <div style={{ fontSize: '1.1rem', color: '#fcd34d', fontWeight: 'bold', textShadow: '1px 1px 2px #000' }}>
-          {roomData.status === 'game_over' ? `🎉 遊戲結束！【${roomData.winner.split('@')[0]}】贏得了最終勝利！` : (roomData.actionLog || '等待遊戲開始...')}
-        </div>
-      </div>
-
-      {/* 🃏 主遊戲桌面 */}
-      <div style={{ width: '100%', maxWidth: '900px', flex: 1, background: 'radial-gradient(circle, #7f1d1d 0%, #450a0a 100%)', border: '8px solid #3f3f46', borderRadius: '20px', padding: '20px', boxShadow: 'inset 0 0 50px rgba(0,0,0,0.8)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      {/* 🃏 環繞式虛擬主牌桌 */}
+      <div style={{ width: '100%', maxWidth: '900px', flex: 1, position: 'relative', background: 'radial-gradient(circle, #7f1d1d 0%, #450a0a 100%)', border: '6px solid #3f3f46', borderRadius: '20px', boxShadow: 'inset 0 0 50px rgba(0,0,0,0.8)', overflow: 'hidden' }}>
         
-        {/* 對手區域 */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
-          {opponents.map((opp) => (
-            <div key={opp.name} style={{ textAlign: 'center', background: roomData?.turn === opp.name ? 'rgba(252,211,77,0.15)' : 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '12px', border: roomData?.turn === opp.name ? '2px solid #fcd34d' : '2px solid transparent', opacity: opp.isAlive ? 1 : 0.4, position: 'relative' }}>
-              {activeEmojis[opp.name] && <div style={{ position: 'absolute', top: '-40px', left: '50%', transform: 'translateX(-50%)', fontSize: '2rem', zIndex: 10 }}>{activeEmojis[opp.name]}</div>}
-              
-              <h4 style={{ margin: '0 0 5px 0', color: opp.isAlive ? '#fff' : '#9ca3af' }}>
-                {opp.name.split('@')[0]}
-              </h4>
-              <div style={{ color: '#fca5a5', fontSize: '0.85rem', marginBottom: '8px' }}>
-                好感度: {'❤️'.repeat(opp.tokens)}
-              </div>
-              
-              <div style={{ display: 'flex', justifyContent: 'center', minHeight: '105px' }}>
-                {opp.isAlive ? (
-                  opp.hand?.map((c, i) => renderCard(c, null, false, false))
-                ) : (
-                  <div style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '30px' }}>💀 已出局</div>
-                )}
-              </div>
-              {opp.isProtected && <div style={{ position: 'absolute', top: '-10px', right: '-10px', fontSize: '1.5rem', background: '#fff', borderRadius: '50%', padding: '2px', boxShadow: '0 2px 5px rgba(0,0,0,0.5)' }}>🛡️</div>}
-            </div>
-          ))}
-        </div>
+        {isPlaying && (
+          <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 5, textAlign: 'center', background: 'rgba(0,0,0,0.5)', padding: '5px', borderRadius: '8px', border: '1px solid #b45309', transform: 'scale(0.75)', transformOrigin: 'top right' }}>
+            <div style={{ color: '#d1d5db', fontSize: '0.7rem', marginBottom: '3px' }}>牌庫</div>
+            {renderCard(null, null, false, true)}
+            <div style={{ color: '#fcd34d', fontWeight: 'bold', fontSize: '0.8rem', marginTop: '3px' }}>{roomData.deckCount || 0} 張</div>
+          </div>
+        )}
 
-        {/* 中央資訊區 (牌庫與棄牌堆) */}
-        <div style={{ textAlign: 'center', margin: '20px 0', padding: '15px', background: 'rgba(0,0,0,0.5)', borderRadius: '12px' }}>
+        {/* ✨ 升級 1：中央行動日誌 (移至 top 62% 與大幅調高 zIndex) */}
+        <div style={{ position: 'absolute', top: '62%', left: '50%', transform: 'translate(-50%, -50%)', width: '85%', textAlign: 'center', zIndex: 30 }}>
           {!isPlaying && roomData.status === 'waiting' ? (
             isOwner ? (
-              <button onClick={() => startGame()} style={{ padding: '12px 30px', background: 'linear-gradient(to bottom, #fcd34d, #d97706)', color: '#450a0a', border: 'none', borderRadius: '25px', fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>
-                ✉️ 開始派送情書
-              </button>
-            ) : (
-              <div style={{ color: '#d1d5db', fontSize: '1.2rem' }}>等待房主開始遊戲...</div>
-            )
+              <button onClick={() => startGame()} style={{ padding: '10px 20px', background: 'linear-gradient(to bottom, #fcd34d, #d97706)', color: '#450a0a', border: 'none', borderRadius: '25px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>✉️ 發送情書</button>
+            ) : <div style={{ color: '#d1d5db', fontSize: '0.9rem' }}>等待房主開始...</div>
           ) : (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '40px' }}>
-              <div>
-                <div style={{ color: '#d1d5db', marginBottom: '5px' }}>剩餘牌庫</div>
-                {renderCard(null, null, false, true)}
-                <div style={{ color: '#fcd34d', fontWeight: 'bold', marginTop: '5px' }}>{roomData.deck?.length || 0} 張</div>
-              </div>
-              <div>
-                <div style={{ color: '#d1d5db', marginBottom: '5px' }}>棄牌堆 (公開資訊)</div>
-                <div style={{ display: 'flex', gap: '2px', flexWrap: 'wrap', maxWidth: '250px', justifyContent: 'center' }}>
-                  {roomData.discardPile?.length === 0 ? <div style={{ color: '#666' }}>尚無棄牌</div> : 
-                   roomData.discardPile?.map((c, i) => (
-                    <div key={i} style={{ background: '#fffbeb', color: '#7f1d1d', padding: '2px 6px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold', border: '1px solid #b45309' }}>
-                      {c.value} {c.name}
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.7)', padding: '6px 12px', borderRadius: '20px', color: '#fcd34d', fontWeight: 'bold', fontSize: '0.85rem', border: '1px solid #7f1d1d', boxShadow: '0 4px 6px rgba(0,0,0,0.5)' }}>
+              <span style={{ display: 'inline-block', maxWidth: '140px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {roomData.status === 'game_over' ? `🎉 遊戲結束！【${roomData.winner.split('@')[0]}】獲勝！` : roomData.actionLog}
+              </span>
+              <button onClick={() => setShowLogModal(true)} style={{ padding: '2px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.75rem', cursor: 'pointer', flexShrink: 0 }}>
+                紀錄
+              </button>
             </div>
           )}
         </div>
 
-        {/* 玩家自己的區域 */}
+        {/* 對手環繞座位 */}
+        {opponents.map((opp, index) => (
+          <div key={opp.name} style={{ ...getOpponentStyle(index, opponents.length), border: roomData?.turn === opp.name ? '2px solid #fcd34d' : '1px solid rgba(255,255,255,0.1)', opacity: opp.isAlive ? 1 : 0.5 }}>
+            {activeEmojis[opp.name] && <div style={{ position: 'absolute', top: '-30px', left: '50%', transform: 'translateX(-50%)', fontSize: '1.5rem', zIndex: 10 }}>{activeEmojis[opp.name]}</div>}
+            
+            <div style={{ color: opp.isAlive ? '#fff' : '#9ca3af', fontWeight: 'bold', fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }}>
+              {opp.nickname || opp.name.split('@')[0]}
+            </div>
+            <div style={{ color: '#fca5a5', fontSize: '0.7rem', marginBottom: '5px' }}>{'❤️'.repeat(opp.tokens)}</div>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', transform: 'scale(0.8)', margin: '-10px 0' }}>
+              {opp.isAlive ? opp.hand?.map((c, i) => renderCard(c, null, false, false)) : <div style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '10px' }}>💀</div>}
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '2px', marginTop: '5px' }}>
+              {opp.discarded?.map((c, i) => (
+                 <div key={i} style={{ background: 'rgba(255, 251, 235, 0.9)', color: '#7f1d1d', padding: '1px 3px', borderRadius: '3px', fontSize: '0.65rem', border: '1px solid #b45309', fontWeight: 'bold' }}>{c.value} {c.name}</div>
+              ))}
+            </div>
+            {opp.isProtected && <div style={{ position: 'absolute', top: '-8px', right: '-8px', fontSize: '1.2rem', background: '#fff', borderRadius: '50%', padding: '2px', boxShadow: '0 2px 5px rgba(0,0,0,0.5)' }}>🛡️</div>}
+          </div>
+        ))}
+
+        {/* 玩家本人的座位 */}
         {me && (
-          <div style={{ textAlign: 'center', background: 'rgba(0,0,0,0.6)', padding: '15px', borderRadius: '15px', border: isMyTurn ? '3px solid #00e676' : '2px solid transparent', opacity: me.isAlive ? 1 : 0.5, position: 'relative' }}>
+          <div style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%) scale(0.82)', transformOrigin: 'bottom center', zIndex: 10, background: 'rgba(0,0,0,0.6)', padding: '10px 15px', borderRadius: '15px', border: isMyTurn ? '3px solid #00e676' : '1px solid transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '270px' }}>
             {activeEmojis[me.name] && <div style={{ position: 'absolute', top: '-40px', left: '50%', transform: 'translateX(-50%)', fontSize: '2rem', zIndex: 10 }}>{activeEmojis[me.name]}</div>}
             
-            <h3 style={{ margin: '0 0 5px 0', color: isMyTurn ? '#00e676' : 'white' }}>
-              你的手牌 (好感度: {'❤️'.repeat(me.tokens)})
-            </h3>
-            
-            <div style={{ display: 'flex', justifyContent: 'center', minHeight: '110px', marginTop: '10px' }}>
-              {me.isAlive ? (
-                me.hand?.map((c, i) => {
-                  const isDisabled = mustPlayCountess && c.value !== 7;
-                  return renderCard(c, handleCardClick, isDisabled, false);
-                })
-              ) : (
-                <div style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '1.2rem', marginTop: '30px' }}>💀 你已出局，等待下局開始</div>
-              )}
+            <div style={{ color: isMyTurn ? '#00e676' : 'white', fontWeight: 'bold', fontSize: '1rem', marginBottom: '5px' }}>
+              {me.nickname || me.name.split('@')[0]} ({'❤️'.repeat(me.tokens)})
             </div>
-            {me.isProtected && <div style={{ color: '#60a5fa', fontWeight: 'bold', marginTop: '10px' }}>🛡️ 侍女保護中，免疫所有效果</div>}
-            {isMyTurn && <div style={{ color: '#fcd34d', fontWeight: 'bold', marginTop: '15px', animation: 'pulse 1.5s infinite' }}>👉 輪到你了！請點擊一張手牌打出。</div>}
+            
+            <div style={{ display: 'flex', justifyContent: 'center', minHeight: '100px', transform: 'scale(0.95)' }}>
+              {me.isAlive ? me.hand?.map((c, i) => renderCard(c, handleCardClick, mustPlayCountess && c.value !== 7, false)) : <div style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '30px' }}>💀 已出局</div>}
+            </div>
+
+            {me.discarded?.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '4px', marginTop: '10px' }}>
+                <div style={{ width: '100%', fontSize: '0.75rem', color: '#fca5a5', marginBottom: '2px', textAlign: 'center' }}>棄牌紀錄</div>
+                {me.discarded.map((c, i) => (
+                   <div key={i} style={{ background: '#fffbeb', color: '#7f1d1d', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', border: '1px solid #b45309', fontWeight: 'bold' }}>{c.value} {c.name}</div>
+                ))}
+              </div>
+            )}
+            {me.isProtected && <div style={{ color: '#60a5fa', fontWeight: 'bold', marginTop: '5px', fontSize: '0.8rem' }}>🛡️ 免疫中</div>}
           </div>
         )}
       </div>
+
+      {/* ✨ 升級 2：顯示本局「所有動態」的歷史紀錄彈窗 (由新到舊排列) */}
+      {showLogModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 150 }}>
+          <div style={{ background: '#2d0c0c', padding: '25px', borderRadius: '15px', border: '2px solid #fcd34d', textAlign: 'center', color: 'white', maxWidth: '350px', width: '85%', display: 'flex', flexDirection: 'column', maxHeight: '70vh' }}>
+            <h3 style={{ color: '#fcd34d', margin: '0 0 15px 0' }}>📜 本局動態紀錄</h3>
+            
+            <div style={{ flex: 1, overflowY: 'auto', textAlign: 'left', padding: '0 5px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {[...logHistory].reverse().map((log, idx) => {
+                const isLatest = idx === 0;
+                return (
+                  <div key={idx} style={{
+                    fontSize: '0.9rem', lineHeight: '1.4',
+                    color: isLatest ? '#fcd34d' : '#d1d5db',
+                    fontWeight: isLatest ? 'bold' : 'normal',
+                    borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px'
+                  }}>
+                    {log}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button onClick={() => setShowLogModal(false)} style={{ marginTop: '20px', padding: '8px 25px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem' }}>
+              關閉
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 🎯 目標選擇 Modal */}
       {showTargetModal && (
@@ -296,7 +340,7 @@ export default function LoveLetterPage({ user }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
               {getValidTargets(pendingCard?.value).map(p => (
                 <button key={p.name} onClick={() => handleTargetSelect(p.name)} style={{ padding: '10px', background: '#7f1d1d', color: 'white', border: '1px solid #fca5a5', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
-                  {p.name === username ? '自己' : p.name.split('@')[0]}
+                  {p.name === username ? '自己' : (p.nickname || p.name.split('@')[0])}
                 </button>
               ))}
               <button onClick={() => setShowTargetModal(false)} style={{ padding: '10px', background: 'transparent', color: '#9ca3af', border: 'none', cursor: 'pointer', marginTop: '10px' }}>取消出牌</button>
@@ -310,7 +354,7 @@ export default function LoveLetterPage({ user }) {
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 105 }}>
           <div style={{ background: '#2d0c0c', padding: '25px', borderRadius: '15px', border: '2px solid #fcd34d', textAlign: 'center', color: 'white', maxWidth: '500px', width: '95%' }}>
             <h3 style={{ color: '#fcd34d', marginTop: 0 }}>猜測手牌</h3>
-            <p style={{ color: '#d1d5db', fontSize: '0.9rem' }}>請猜測【{selectedTarget?.split('@')[0]}】手上的牌 (不能猜衛兵)：</p>
+            <p style={{ color: '#d1d5db', fontSize: '0.9rem' }}>請猜測目標手上的牌 (不能猜衛兵)：</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center', marginTop: '15px' }}>
               {CARD_DEFINITIONS.filter(c => c.value !== 1).map(c => (
                 <button key={c.value} onClick={() => handleGuessSelect(c.value)} style={{ padding: '8px 12px', background: '#fffbeb', color: '#7f1d1d', border: '2px solid #b45309', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
@@ -328,7 +372,7 @@ export default function LoveLetterPage({ user }) {
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 110 }}>
           <div style={{ background: '#1a0505', padding: '30px', borderRadius: '15px', border: '2px solid #60a5fa', textAlign: 'center', color: 'white', boxShadow: '0 0 30px rgba(96, 165, 250, 0.4)' }}>
             <h2 style={{ color: '#60a5fa', marginTop: 0 }}>👁️ 神父的啟示</h2>
-            <p>你看到了【{privateInfo.targetName.split('@')[0]}】的手牌是：</p>
+            <p>你看到了對手的手牌是：</p>
             <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}>
               {privateInfo.hand.map((c, i) => renderCard(c, null, false, false))}
             </div>

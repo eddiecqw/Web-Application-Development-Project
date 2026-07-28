@@ -97,8 +97,8 @@ export default function useLoveLetterSocket(url, eventHandlers = {}) {
   }, []);
 
   const createRoom = useCallback((settings) => send('LL_CREATE_ROOM', settings), [send]);  
-  const joinRoom = useCallback((id) => send('LL_JOIN_ROOM', { roomId: id }), [send]);
-  const startGame = useCallback(() => send('LL_START_GAME', { roomId }), [send, roomId]);
+  // ✨ 修改 joinRoom 讓它接收 nickname
+  const joinRoom = useCallback((id, nickname) => send('LL_JOIN_ROOM', { roomId: id, nickname }), [send]);  const startGame = useCallback(() => send('LL_START_GAME', { roomId }), [send, roomId]);
   const sendEmoji = useCallback((emoji) => send('LL_SEND_EMOJI', { roomId, emoji }), [send, roomId]);
   
   // ✨ 核心出牌方法：必須包含 牌的值、目標對象(可為空)、猜測數字(衛兵專用)
