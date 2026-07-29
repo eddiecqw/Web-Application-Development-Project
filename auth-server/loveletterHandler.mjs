@@ -26,14 +26,15 @@ function createDeck() {
   return deck;
 }
 
-// ✨ 修復 1：安全視角加入 deckCount，解決前端 0 張牌的問題
+// ✨ 修復：安全視角加入 deckCount，並封堵 resolving 狀態的資訊外洩
 function getSafeRoomState(room, username) {
   const safeRoom = JSON.parse(JSON.stringify(room));
   safeRoom.deckCount = safeRoom.deck ? safeRoom.deck.length : 0; 
   delete safeRoom.deck;
   delete safeRoom.removedCard;
 
-  if (safeRoom.status === 'playing') {
+  // ✨ 核心修復：在 playing (遊玩中) 與 resolving (動畫暫停中) 的期間，都要嚴格隱藏對手手牌！
+  if (safeRoom.status === 'playing' || safeRoom.status === 'resolving') {
     safeRoom.players.forEach(p => {
       if (p.name !== username && p.isAlive) {
         p.hand = p.hand.map(() => ({ isHidden: true }));
