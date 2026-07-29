@@ -257,12 +257,22 @@ export function handleLoveLetterMessage(ws, type, data, wss, callbacks) {
             break;
           case 3:
             if (targetPlayer) {
-              const myCard = player.hand[0].value;
-              const targetCard = targetPlayer.hand[0].value;
+              const myCard = player.hand[0];
+              const targetCard = targetPlayer.hand[0];
               actionLog += `，與【${targetName.split('@')[0]}】秘密對決`;
-              if (myCard > targetCard) { targetPlayer.isAlive = false; actionLog += ` ➔ 贏了！目標出局。`; } 
-              else if (myCard < targetCard) { player.isAlive = false; actionLog += ` ➔ 輸了！自己出局。`; } 
+              if (myCard.value > targetCard.value) { targetPlayer.isAlive = false; actionLog += ` ➔ 贏了！目標出局。`; } 
+              else if (myCard.value < targetCard.value) { player.isAlive = false; actionLog += ` ➔ 輸了！自己出局。`; } 
               else actionLog += ` ➔ 平手，無事發生。`;
+              
+              // ✨ 發送男爵對決的私密牌面資訊給當事雙方
+              const baronData = { playerA: username, cardA: myCard, playerB: targetName, cardB: targetCard };
+              wss.clients.forEach(client => {
+                if (client.readyState === 1 && client._llRoomId === roomId) {
+                  if (client._username === username || client._username === targetName) {
+                    client.send(JSON.stringify({ type: 'LL_BARON_REVEAL', data: baronData }));
+                  }
+                }
+              });
             }
             break;
           case 4:
@@ -296,7 +306,16 @@ export function handleLoveLetterMessage(ws, type, data, wss, callbacks) {
             break;
         }
       }
-      advanceTurn(roomId, wss, actionLog);
+      room.status = 'resolving'; // 將房間鎖死，前端無法出牌
+      room.actionLog = actionLog;
+      broadcastToRoom(roomId, 'LL_GAME_UPDATE', wss);
+
+      setTimeout(() => {
+        if (loveletterRooms[roomId]) {
+          loveletterRooms[roomId].status = 'playing'; // 解除鎖定
+          advanceTurn(roomId, wss, actionLog);        // 推進回合並發牌
+        }
+      }, 3500); // 完美給予前端 3.5 秒的動畫播放時間
       break;
     }
 
