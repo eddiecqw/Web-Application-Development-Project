@@ -307,6 +307,16 @@ export function handleLoveLetterMessage(ws, type, data, wss, callbacks) {
             break;
         }
       }
+
+      // ✨ 新增：淘汰者強制攤牌邏輯
+      // 掃描所有玩家，如果已經死亡但手上還有牌（例如被衛兵暗殺、男爵比輸），強制將手牌移入棄牌區
+      room.players.forEach(p => {
+        if (!p.isAlive && p.hand.length > 0) {
+          p.discarded.push(...p.hand); // 將手上的牌丟進棄牌堆
+          p.hand = [];                 // 清空手牌
+        }
+      });
+
       room.status = 'resolving'; // 將房間鎖死，前端無法出牌
       room.actionLog = actionLog;
       broadcastToRoom(roomId, 'LL_GAME_UPDATE', wss);
