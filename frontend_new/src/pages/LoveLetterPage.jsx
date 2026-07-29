@@ -31,19 +31,22 @@ export default function LoveLetterPage({ user }) {
   const [showGuessModal, setShowGuessModal] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState(null);
 
-  // 動態日誌與歷史紀錄狀態
   const [showLogModal, setShowLogModal] = useState(false);
   const [currentLog, setCurrentLog] = useState('');
   const [logHistory, setLogHistory] = useState([]);
+  const [activeAnim, setActiveAnim] = useState(null);
 
   const [isBgmPlaying, setIsBgmPlaying] = useState(false);
-  const bgmRef = useRef(new Audio('/audio/Sealed_With_A_Wax_Crest.mp3'));
+  const bgmRef = useRef(new Audio('/audio/Sealed_With_A_Wax_Crest.mp3')); 
 
   useEffect(() => {
     const audio = bgmRef.current;
     audio.loop = true;
     audio.volume = 0.3;
-    return () => { audio.pause(); audio.currentTime = 0; };
+    return () => { 
+      audio.pause(); 
+      try { audio.currentTime = 0; } catch (e) { } 
+    };
   }, []);
 
   const toggleBgm = () => {
@@ -53,8 +56,8 @@ export default function LoveLetterPage({ user }) {
   };
 
   const {
-    createRoom, joinRoom, startGame, playCard, leaveRoom, sendEmoji, clearPrivateInfo, restartGame,
-    gameState: { roomId, roomData, privateInfo }
+    createRoom, joinRoom, startGame, playCard, leaveRoom, sendEmoji, restartGame,
+    gameState: { roomId, roomData, privateInfo, baronReveal }
   } = useLoveLetterSocket(wsUrl, {
     LL_SHOW_EMOJI: (data) => {
       setActiveEmojis(prev => ({ ...prev, [data.username]: data.emoji }));
@@ -64,24 +67,50 @@ export default function LoveLetterPage({ user }) {
     }
   });
 
-  // 監聽日誌變化，自動記錄歷史並在超長時彈窗
   useEffect(() => {
     if (roomData?.actionLog && roomData.actionLog !== currentLog) {
-      setCurrentLog(roomData.actionLog);
+      const log = roomData.actionLog;
+      setCurrentLog(log);
       
       setLogHistory(prev => {
-        if (roomData.actionLog === '遊戲開始！') {
-          return [roomData.actionLog];
-        }
-        return [...prev, roomData.actionLog];
+        if (log === '遊戲開始！') return [log];
+        if (prev[prev.length - 1] === log) return prev;
+        return [...prev, log];
       });
 
-      // 如果文字太長，自動彈出完整的歷史紀錄視窗讓玩家看清楚
-      if (roomData.actionLog.length > 15) {
-        setShowLogModal(true);
+      if (!log.includes('遊戲開始') && !log.includes('只剩') && !log.includes('牌庫耗盡')) {
+        let animType = null;
+        let emoji = '';
+
+        if (log.includes('[衛兵]')) { animType = 'guard'; emoji = log.includes('出局') ? '🗡️🎯' : '🗡️🛡️'; }
+        else if (log.includes('[神父]')) { animType = 'priest'; emoji = '👁️'; }
+        else if (log.includes('[男爵]')) { animType = 'baron'; emoji = '⚔️'; }
+        else if (log.includes('[侍女]')) { animType = 'handmaid'; emoji = '🛡️✨'; }
+        else if (log.includes('[王子]')) { animType = 'prince'; emoji = '🌪️'; }
+        else if (log.includes('[國王]')) { animType = 'king'; emoji = '🔄'; }
+        else if (log.includes('[伯爵夫人]')) { animType = 'countess'; emoji = '🌹✨'; }
+        else if (log.includes('[公主]')) { animType = 'princess'; emoji = '💔'; }
+
+        if (animType) {
+          const matches = [...log.matchAll(/【(.*?)】/g)];
+          const sourceName = matches[0] ? matches[0][1] : '系統';
+          const targetName = matches[1] ? matches[1][1] : '對手';
+          const actionText = log.split('，')[1] || log;
+          
+          setActiveAnim({ type: animType, emoji, sourceName, targetName, actionText });
+        }
       }
     }
   }, [roomData?.actionLog, currentLog]);
+
+  useEffect(() => {
+    if (activeAnim) {
+      const timer = setTimeout(() => {
+        setActiveAnim(null);
+      }, 3400); 
+      return () => clearTimeout(timer);
+    }
+  }, [activeAnim]);
 
   const handleLeaveGame = () => {
     if (window.confirm("⚠️ 確定要離開宮廷嗎？")) {
@@ -93,7 +122,7 @@ export default function LoveLetterPage({ user }) {
   const isOwner = roomData?.owner === username;
   const me = useMemo(() => roomData?.players.find(p => p.name === username), [roomData, username]);
   const opponents = useMemo(() => roomData?.players.filter(p => p.name !== username) || [], [roomData, username]);
-  const isPlaying = roomData?.status === 'playing' || roomData?.status === 'showdown';
+  const isPlaying = roomData?.status === 'playing' || roomData?.status === 'showdown' || roomData?.status === 'resolving';
   const isMyTurn = roomData?.status === 'playing' && roomData?.turn === username && me?.isAlive;
 
   const hasCountess = me?.hand?.some(c => c.value === 7);
@@ -112,17 +141,11 @@ export default function LoveLetterPage({ user }) {
       alert('⚠️ 你同時持有伯爵夫人與王子/國王，必須強制打出伯爵夫人！');
       return;
     }
-
     const needsTarget = [1, 2, 3, 5, 6].includes(card.value);
-    
     if (needsTarget) {
       const validTargets = getValidTargets(card.value);
-      if (validTargets.length === 0) {
-        playCard(card.value, null, null);
-      } else {
-        setPendingCard(card);
-        setShowTargetModal(true);
-      }
+      if (validTargets.length === 0) playCard(card.value, null, null);
+      else { setPendingCard(card); setShowTargetModal(true); }
     } else {
       playCard(card.value, null, null);
     }
@@ -146,24 +169,17 @@ export default function LoveLetterPage({ user }) {
     setSelectedTarget(null);
   };
 
-  // 確保 keyIndex 參數存在，解決 React 渲染警告
   const renderCard = (card, onClick, disabled = false, isPlaceholder = false, keyIndex = 'default') => {
-    
     if (isPlaceholder || !card || card.isHidden) {
       return (
         <img 
           key={keyIndex}
           src="/image/loveletter/card_back.jpg" 
           alt="Card Back"
-          style={{
-            width: '70px', height: '100px', margin: '0 5px', borderRadius: '8px',
-            border: '2px solid #fcd34d', boxShadow: '2px 2px 8px rgba(0,0,0,0.5)',
-            objectFit: 'cover'
-          }}
+          style={{ width: '70px', height: '100px', margin: '0 5px', borderRadius: '8px', border: '2px solid #fcd34d', boxShadow: '2px 2px 8px rgba(0,0,0,0.5)', objectFit: 'cover' }}
         />
       );
     }
-    
     return (
       <img 
         key={keyIndex}
@@ -173,8 +189,7 @@ export default function LoveLetterPage({ user }) {
         style={{
           width: '70px', height: '100px', margin: '0 5px', borderRadius: '8px',
           border: disabled ? '2px solid #ccc' : '2px solid #b45309',
-          boxShadow: '2px 2px 8px rgba(0,0,0,0.5)',
-          objectFit: 'cover',
+          boxShadow: '2px 2px 8px rgba(0,0,0,0.5)', objectFit: 'cover',
           cursor: disabled ? 'not-allowed' : (onClick ? 'pointer' : 'default'),
           opacity: disabled ? 0.6 : 1, transition: 'transform 0.1s',
           transform: (onClick && !disabled) ? 'translateY(-5px)' : 'none'
@@ -186,11 +201,7 @@ export default function LoveLetterPage({ user }) {
   };
 
   const getOpponentStyle = (index, total) => {
-    const baseStyle = { 
-      position: 'absolute', zIndex: 10, display: 'flex', flexDirection: 'column', 
-      alignItems: 'center', background: 'rgba(0,0,0,0.4)', padding: '6px', 
-      borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', width: '110px'
-    };
+    const baseStyle = { position: 'absolute', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(0,0,0,0.4)', padding: '6px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', width: '110px' };
     if (total === 1) return { ...baseStyle, top: '10px', left: '50%', transform: 'translateX(-50%)' };
     if (total === 2) {
       if (index === 0) return { ...baseStyle, top: '35%', left: '8px', transform: 'translateY(-50%)' };
@@ -215,6 +226,164 @@ export default function LoveLetterPage({ user }) {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#2d0c0c', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '5px' }}>
       
+      {/* 🎬 動畫樣式 */}
+      <style>
+        {`
+          /* === 漸隱浮現容器 === */
+          .anim-crossfade-container { 
+            position: relative; 
+            width: 120px; height: 168px; 
+            margin: 0 auto; 
+            animation: card-fly-and-glow 3s forwards; 
+          }
+          
+          /* 卡牌飛入中央並發出光芒 */
+          @keyframes card-fly-and-glow { 
+            0% { transform: translateY(150px) scale(0.5); opacity: 0; filter: drop-shadow(0 0 0 rgba(252,211,77,0)); } 
+            15% { transform: translateY(0) scale(1.2); opacity: 1; filter: drop-shadow(0 0 10px rgba(252,211,77,0.5)); } 
+            30% { transform: translateY(0) scale(1.4); opacity: 1; filter: drop-shadow(0 0 25px rgba(252,211,77,1)); } 
+            85% { transform: translateY(0) scale(1.4); opacity: 1; filter: drop-shadow(0 0 25px rgba(252,211,77,1)); } 
+            100% { transform: translateY(-50px) scale(0.5); opacity: 0; } 
+          }
+
+          /* 牌背：前段顯示，中段開始消失 (當事人專用) */
+          .anim-card-back { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            border-radius: 8px; object-fit: cover; 
+            animation: crossfade-back 3s forwards; 
+          }
+          @keyframes crossfade-back { 
+            0%, 30% { opacity: 1; transform: scale(1); } 
+            45%, 100% { opacity: 0; transform: scale(1.1); } 
+          }
+
+          /* 牌面正身：前段隱藏，中段開始浮現 (當事人專用) */
+          .anim-card-front { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            border-radius: 8px; object-fit: cover; 
+            animation: crossfade-front 3s forwards; 
+          }
+          @keyframes crossfade-front { 
+            0%, 30% { opacity: 0; transform: scale(0.9); } 
+            45%, 100% { opacity: 1; transform: scale(1); } 
+          }
+
+          /* 旁觀者專用：牌背飛出但不消失，加上疊加符號 */
+          .anim-spectator-back {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            border-radius: 8px; object-fit: cover;
+          }
+          
+          /* === 男爵對決衝刺動畫 === */
+          .anim-clash-left { animation: clash-left 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+          .anim-clash-right { animation: clash-right 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+          @keyframes clash-left { 0% { transform: translateX(-150px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+          @keyframes clash-right { 0% { transform: translateX(150px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+
+          /* === 其他角色特效 === */
+          @keyframes anim-guard { 0% { transform: scale(3) rotate(-45deg); opacity: 0; } 30% { transform: scale(1.2) rotate(10deg); opacity: 1; } 80% { transform: scale(1) rotate(0deg); opacity: 1; } 100% { transform: scale(0.5); opacity: 0; } }
+          @keyframes anim-handmaid { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.5); opacity: 1; filter: drop-shadow(0 0 30px #fcd34d); } 100% { transform: scale(1); opacity: 0; } }
+          @keyframes anim-prince { 0% { transform: scale(0.1) translateX(-50vw); opacity: 0; } 50% { transform: scale(2) translateX(0) rotate(360deg); opacity: 1; } 100% { transform: scale(0.1) translateX(50vw) rotate(720deg); opacity: 0; } }
+          @keyframes anim-king { 0% { transform: rotateY(0deg) scale(1); } 50% { transform: rotateY(180deg) scale(1.5); filter: drop-shadow(0 0 20px #fbbf24); } 100% { transform: rotateY(360deg) scale(1); } }
+          @keyframes anim-countess { 0% { transform: translateY(-50px) scale(0.5); opacity: 0; } 50% { transform: translateY(0) scale(1.5); opacity: 1; filter: drop-shadow(0 0 30px #ef4444); } 100% { transform: translateY(50px) scale(0.5); opacity: 0; } }
+          @keyframes anim-princess { 0% { transform: scale(1); opacity: 0; } 20% { transform: scale(1.8); opacity: 1; filter: drop-shadow(0 0 20px #ef4444); } 80% { transform: scale(1.8); opacity: 1; } 100% { transform: scale(0.5) translateY(50px); opacity: 0; } }
+          @keyframes banner-fade { 0% { width: 0%; opacity: 0; } 10% { width: 100%; opacity: 1; } 90% { width: 100%; opacity: 1; } 100% { width: 0%; opacity: 0; } }
+          @keyframes text-fade { 0% { opacity: 0; transform: translateY(10px); } 15% { opacity: 1; transform: translateY(0); } 85% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
+        `}
+      </style>
+
+      {/* 🎬 電影級全螢幕動畫覆蓋層 */}
+      {activeAnim && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.75)', zIndex: 500, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+           
+           {/* ✨ 神父看牌動畫 (區分當事人與旁觀者) */}
+           {activeAnim.type === 'priest' && (
+             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+               <div style={{ color: '#fff', fontSize: '1.4rem', fontWeight: 'bold', textShadow: '0 2px 6px #000', zIndex: 10 }}>{activeAnim.targetName} 的手牌</div>
+               <div className="anim-crossfade-container">
+                 {privateInfo ? (
+                   <>
+                     <img src="/image/loveletter/card_back.jpg" className="anim-card-back" alt="card back" />
+                     <div className="anim-card-front">
+                       <img src={`/image/loveletter/card_${privateInfo.hand[0].value}.jpg`} style={{width:'100%', height:'100%', borderRadius:'8px', objectFit:'cover'}} alt="revealed card" />
+                     </div>
+                   </>
+                 ) : (
+                   <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                     <img src="/image/loveletter/card_back.jpg" className="anim-spectator-back" alt="card back" />
+                     <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '4rem', zIndex: 10, textShadow: '0 0 15px #000' }}>👁️</div>
+                   </div>
+                 )}
+               </div>
+             </div>
+           )}
+
+           {/* ✨ 男爵對決動畫 (區分當事人與旁觀者) */}
+           {activeAnim.type === 'baron' && (
+             <div style={{ display: 'flex', gap: '15px', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '0 10px' }}>
+               <div className="anim-clash-left" style={{ textAlign: 'center', flex: 1 }}>
+                 <div style={{ color: '#fff', marginBottom: '15px', fontWeight: 'bold', textShadow: '0 2px 4px #000', fontSize: '1.1rem' }}>{activeAnim.sourceName}</div>
+                 <div className="anim-crossfade-container">
+                   {baronReveal ? (
+                     <>
+                       <img src="/image/loveletter/card_back.jpg" className="anim-card-back" alt="card back" />
+                       <div className="anim-card-front">
+                         <img src={`/image/loveletter/card_${baronReveal.cardA.value}.jpg`} style={{width:'100%', height:'100%', borderRadius:'8px', objectFit:'cover'}} alt="revealed card" />
+                       </div>
+                     </>
+                   ) : (
+                     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                       <img src="/image/loveletter/card_back.jpg" className="anim-spectator-back" alt="card back" />
+                       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '3.5rem', zIndex: 10, textShadow: '0 0 15px #000' }}>⚔️</div>
+                     </div>
+                   )}
+                 </div>
+               </div>
+               
+               <div style={{ fontSize: '3rem', zIndex: 10, textShadow: '0 0 20px #ef4444', flexShrink: 0 }}>⚡</div>
+
+               <div className="anim-clash-right" style={{ textAlign: 'center', flex: 1 }}>
+                 <div style={{ color: '#fff', marginBottom: '15px', fontWeight: 'bold', textShadow: '0 2px 4px #000', fontSize: '1.1rem' }}>{activeAnim.targetName}</div>
+                 <div className="anim-crossfade-container">
+                   {baronReveal ? (
+                     <>
+                       <img src="/image/loveletter/card_back.jpg" className="anim-card-back" alt="card back" />
+                       <div className="anim-card-front">
+                         <img src={`/image/loveletter/card_${baronReveal.cardB.value}.jpg`} style={{width:'100%', height:'100%', borderRadius:'8px', objectFit:'cover'}} alt="revealed card" />
+                       </div>
+                     </>
+                   ) : (
+                     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                       <img src="/image/loveletter/card_back.jpg" className="anim-spectator-back" alt="card back" />
+                       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '3.5rem', zIndex: 10, textShadow: '0 0 15px #000' }}>⚔️</div>
+                     </div>
+                   )}
+                 </div>
+               </div>
+             </div>
+           )}
+
+           {/* 一般特效 */}
+           {activeAnim.type !== 'priest' && activeAnim.type !== 'baron' && (
+             <div style={{ fontSize: 'clamp(4rem, 20vw, 7rem)', animation: `anim-${activeAnim.type} 2.2s forwards`, textShadow: '0 0 30px rgba(255,255,255,0.5)' }}>
+               {activeAnim.emoji}
+             </div>
+           )}
+
+           {/* 響應式橫幅 */}
+           <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'center', width: '100%', overflow: 'hidden' }}>
+             <div style={{ background: 'linear-gradient(90deg, transparent, rgba(127, 29, 29, 0.95) 15%, rgba(127, 29, 29, 0.95) 85%, transparent)', padding: '15px 0', animation: 'banner-fade 2.4s forwards', display: 'flex', justifyContent: 'center', width: '100%' }}>
+               <div style={{ color: '#fcd34d', fontSize: 'clamp(1rem, 4.5vw, 1.4rem)', fontWeight: 'bold', textShadow: '2px 2px 4px #000', animation: 'text-fade 2.4s forwards', padding: '0 20px', maxWidth: '90vw', textAlign: 'center', lineHeight: '1.5' }}>
+                 <span style={{ color: '#fff', display: 'inline-block' }}>【{activeAnim.sourceName}】</span>
+                 <br />
+                 <span style={{ display: 'inline-block', marginTop: '4px' }}>{activeAnim.actionText}</span>
+               </div>
+             </div>
+           </div>
+        </div>
+      )}
+
+      {/* --- UI Header 與桌面 --- */}
       <header style={{ width: '100%', maxWidth: '900px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 10px', backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '8px', marginBottom: '5px' }}>
         <button onClick={handleLeaveGame} style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>← 離開</button>
         <div style={{ textAlign: 'center' }}>
@@ -222,12 +391,12 @@ export default function LoveLetterPage({ user }) {
           <div style={{ fontSize: '0.75rem', color: '#d1d5db' }}>(目標: {roomData.settings.winTokens} 個)</div>
         </div>
         <div style={{ display: 'flex', gap: '5px' }}>
+          <button onClick={() => setShowLogModal(true)} style={{ padding: '4px 8px', background: '#eab308', color: '#2d0c0c', borderRadius: '4px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>📜</button>
           <button onClick={toggleBgm} style={{ padding: '4px 8px', background: isBgmPlaying ? '#dc2626' : '#4b5563', color: 'white', borderRadius: '4px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>{isBgmPlaying ? '🔊' : '🔇'}</button>
           <button onClick={() => setShowRules(true)} style={{ padding: '4px 8px', background: '#2196F3', color: 'white', borderRadius: '4px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>❓</button>
         </div>
       </header>
 
-      {/* 🃏 環繞式虛擬主牌桌 */}
       <div style={{ width: '100%', maxWidth: '900px', flex: 1, position: 'relative', background: 'radial-gradient(circle, #7f1d1d 0%, #450a0a 100%)', border: '6px solid #3f3f46', borderRadius: '20px', boxShadow: 'inset 0 0 50px rgba(0,0,0,0.8)', overflow: 'hidden' }}>
         
         {isPlaying && (
@@ -238,17 +407,17 @@ export default function LoveLetterPage({ user }) {
           </div>
         )}
 
-        {/* 🎯 完美定位：日誌下移至 top: 56%，徹底避開對手卡牌 */}
         <div style={{ position: 'absolute', top: '56%', left: '50%', transform: 'translate(-50%, -50%)', width: '85%', textAlign: 'center', zIndex: 30 }}>
-          {!isPlaying && roomData.status === 'waiting' ? (
+          {!isPlaying && roomData.status === 'waiting' && (
             isOwner ? (
               <button onClick={() => startGame()} style={{ padding: '10px 20px', background: 'linear-gradient(to bottom, #fcd34d, #d97706)', color: '#450a0a', border: 'none', borderRadius: '25px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>✉️ 發送情書</button>
             ) : <div style={{ color: '#d1d5db', fontSize: '0.9rem' }}>等待房主開始...</div>
+          )}
           
-          ) : roomData.status === 'game_over' ? (
+          {roomData.status === 'game_over' && (
             <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '12px', background: 'rgba(0,0,0,0.9)', padding: '20px 30px', borderRadius: '15px', border: '2px solid #fcd34d', boxShadow: '0 4px 15px rgba(0,0,0,0.8)' }}>
               <div style={{ color: '#fcd34d', fontWeight: 'bold', fontSize: '1.1rem' }}>🎉 遊戲結束！</div>
-              <div style={{ color: '#fff', fontSize: '1rem' }}>【{roomData.winner.split('@')[0]}】贏得了公主的芳心！</div>
+              <div style={{ color: '#fff', fontSize: '1rem' }}>【{roomData.winner?.split('@')[0] || '未知'}】贏得了公主的芳心！</div>
               
               {isOwner ? (
                 <button onClick={() => restartGame()} style={{ marginTop: '5px', padding: '10px 20px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>
@@ -258,19 +427,10 @@ export default function LoveLetterPage({ user }) {
                 <div style={{ color: '#9ca3af', fontSize: '0.9rem', marginTop: '5px' }}>等待房主重新開始...</div>
               )}
             </div>
-          ) : (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.7)', padding: '6px 12px', borderRadius: '20px', color: '#fcd34d', fontWeight: 'bold', fontSize: '0.85rem', border: '1px solid #7f1d1d', boxShadow: '0 4px 6px rgba(0,0,0,0.5)' }}>
-              <span style={{ display: 'inline-block', maxWidth: '140px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {roomData.actionLog}
-              </span>
-              <button onClick={() => setShowLogModal(true)} style={{ padding: '2px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.75rem', cursor: 'pointer', flexShrink: 0 }}>
-                紀錄
-              </button>
-            </div>
           )}
         </div>
 
-        {/* 對手環繞座位 */}
+        {/* 🌟 核心：移除桌面上的 isBeingViewed 與收起按鈕邏輯 */}
         {opponents.map((opp, index) => (
           <div key={opp.name} style={{ ...getOpponentStyle(index, opponents.length), border: roomData?.turn === opp.name ? '2px solid #fcd34d' : '1px solid rgba(255,255,255,0.1)', opacity: opp.isAlive ? 1 : 0.5 }}>
             {activeEmojis[opp.name] && <div style={{ position: 'absolute', top: '-30px', left: '50%', transform: 'translateX(-50%)', fontSize: '1.5rem', zIndex: 10 }}>{activeEmojis[opp.name]}</div>}
@@ -280,9 +440,11 @@ export default function LoveLetterPage({ user }) {
             </div>
             <div style={{ color: '#fca5a5', fontSize: '0.7rem', marginBottom: '5px' }}>{'❤️'.repeat(opp.tokens)}</div>
             
-            <div style={{ display: 'flex', justifyContent: 'center', transform: 'scale(0.8)', margin: '-10px 0' }}>
-              {/* ✨ 加上 keyIndex 綁定 */}
-              {opp.isAlive ? opp.hand?.map((c, i) => renderCard(c, null, false, false, `opp-${opp.name}-${i}`)) : <div style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '10px' }}>💀</div>}
+            {/* 乾淨的桌面卡牌渲染 */}
+            <div style={{ display: 'flex', justifyContent: 'center', transform: 'scale(0.8)', margin: '-10px 0', position: 'relative' }}>
+              {opp.isAlive ? (
+                opp.hand?.map((c, i) => renderCard(c, null, false, false, `opp-${opp.name}-${i}`))
+              ) : <div style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '10px' }}>💀</div>}
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '2px', marginTop: '5px' }}>
@@ -294,7 +456,6 @@ export default function LoveLetterPage({ user }) {
           </div>
         ))}
 
-        {/* 玩家本人的座位 */}
         {me && (
           <div style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%) scale(0.82)', transformOrigin: 'bottom center', zIndex: 10, background: 'rgba(0,0,0,0.6)', padding: '10px 15px', borderRadius: '15px', border: isMyTurn ? '3px solid #00e676' : '1px solid transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '270px' }}>
             {activeEmojis[me.name] && <div style={{ position: 'absolute', top: '-40px', left: '50%', transform: 'translateX(-50%)', fontSize: '2rem', zIndex: 10 }}>{activeEmojis[me.name]}</div>}
@@ -304,7 +465,6 @@ export default function LoveLetterPage({ user }) {
             </div>
             
             <div style={{ display: 'flex', justifyContent: 'center', minHeight: '100px', transform: 'scale(0.95)' }}>
-              {/* ✨ 加上 keyIndex 綁定 */}
               {me.isAlive ? me.hand?.map((c, i) => renderCard(c, handleCardClick, mustPlayCountess && c.value !== 7, false, `me-${i}`)) : <div style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '30px' }}>💀 已出局</div>}
             </div>
 
@@ -321,7 +481,6 @@ export default function LoveLetterPage({ user }) {
         )}
       </div>
 
-      {/* 📜 本局「所有動態」歷史紀錄彈窗 */}
       {showLogModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 150 }}>
           <div style={{ background: '#2d0c0c', padding: '25px', borderRadius: '15px', border: '2px solid #fcd34d', textAlign: 'center', color: 'white', maxWidth: '350px', width: '85%', display: 'flex', flexDirection: 'column', maxHeight: '70vh' }}>
@@ -331,26 +490,18 @@ export default function LoveLetterPage({ user }) {
               {[...logHistory].reverse().map((log, idx) => {
                 const isLatest = idx === 0;
                 return (
-                  <div key={idx} style={{
-                    fontSize: '0.9rem', lineHeight: '1.4',
-                    color: isLatest ? '#fcd34d' : '#d1d5db',
-                    fontWeight: isLatest ? 'bold' : 'normal',
-                    borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px'
-                  }}>
+                  <div key={idx} style={{ fontSize: '0.9rem', lineHeight: '1.4', color: isLatest ? '#fcd34d' : '#d1d5db', fontWeight: isLatest ? 'bold' : 'normal', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px' }}>
                     {log}
                   </div>
                 );
               })}
             </div>
 
-            <button onClick={() => setShowLogModal(false)} style={{ marginTop: '20px', padding: '8px 25px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem' }}>
-              關閉
-            </button>
+            <button onClick={() => setShowLogModal(false)} style={{ marginTop: '20px', padding: '8px 25px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem' }}>關閉</button>
           </div>
         </div>
       )}
 
-      {/* 🎯 目標選擇 Modal */}
       {showTargetModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 }}>
           <div style={{ background: '#2d0c0c', padding: '25px', borderRadius: '15px', border: '2px solid #fcd34d', textAlign: 'center', color: 'white', maxWidth: '400px', width: '90%' }}>
@@ -368,7 +519,6 @@ export default function LoveLetterPage({ user }) {
         </div>
       )}
 
-      {/* 🤔 衛兵猜測 Modal */}
       {showGuessModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 105 }}>
           <div style={{ background: '#2d0c0c', padding: '25px', borderRadius: '15px', border: '2px solid #fcd34d', textAlign: 'center', color: 'white', maxWidth: '500px', width: '95%' }}>
@@ -386,22 +536,6 @@ export default function LoveLetterPage({ user }) {
         </div>
       )}
 
-      {/* 👁️ 神父私密視窗 */}
-      {privateInfo && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 110 }}>
-          <div style={{ background: '#1a0505', padding: '30px', borderRadius: '15px', border: '2px solid #60a5fa', textAlign: 'center', color: 'white', boxShadow: '0 0 30px rgba(96, 165, 250, 0.4)' }}>
-            <h2 style={{ color: '#60a5fa', marginTop: 0 }}>👁️ 神父的啟示</h2>
-            <p>你看到了對手的手牌是：</p>
-            <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}>
-              {/* ✨ 加上 keyIndex 綁定 */}
-              {privateInfo.hand.map((c, i) => renderCard(c, null, false, false, `private-${i}`))}
-            </div>
-            <button onClick={clearPrivateInfo} style={{ padding: '10px 30px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '25px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem' }}>我記住了</button>
-          </div>
-        </div>
-      )}
-
-      {/* 右下角 Emoji */}
       <div style={{ position: 'fixed', bottom: '25px', right: '25px', zIndex: 50 }}>
         {showEmojiPicker && (
           <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '15px', background: 'white', padding: '10px', borderRadius: '12px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
@@ -411,7 +545,6 @@ export default function LoveLetterPage({ user }) {
         <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ width: '60px', height: '60px', borderRadius: '30px', background: '#dc2626', color: 'white', border: 'none', fontSize: '2rem', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', cursor: 'pointer' }}>😀</button>
       </div>
 
-      {/* 規則彈窗 */}
       {showRules && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ background: '#2d0c0c', border: '4px solid #fcd34d', borderRadius: '15px', padding: '25px', maxWidth: '500px', width: '90%', color: 'white', position: 'relative', maxHeight: '80vh', overflowY: 'auto' }}>

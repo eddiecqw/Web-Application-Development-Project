@@ -8,7 +8,8 @@ export default function useLoveLetterSocket(url, eventHandlers = {}) {
   const [roomData, setRoomData] = useState(null);
   // ✨ 專屬狀態：用來暫存神父偷看的「私密資訊」
   const [privateInfo, setPrivateInfo] = useState(null); 
-
+  // （男爵專用）
+  const [baronReveal, setBaronReveal] = useState(null);
   useEffect(() => {
     handlersRef.current = eventHandlers;
   }, [eventHandlers]);
@@ -62,6 +63,12 @@ export default function useLoveLetterSocket(url, eventHandlers = {}) {
           // ✨ 特殊事件：只有自己會收到的私密資訊 (神父發動)
           case 'LL_PRIVATE_INFO':
             setPrivateInfo(data); // 存入狀態供 UI 顯示
+            handlersRef.current[type]?.(data);
+            break;
+          
+          // ✨ 新增：男爵對決接收
+          case 'LL_BARON_REVEAL':
+            setBaronReveal(data);
             handlersRef.current[type]?.(data);
             break;
 
@@ -122,6 +129,6 @@ export default function useLoveLetterSocket(url, eventHandlers = {}) {
 
   return {
     send, createRoom, joinRoom, startGame, restartGame, playCard, leaveRoom, sendEmoji, clearPrivateInfo,
-    gameState: { roomId, roomData, privateInfo },
+    gameState: { roomId, roomData, privateInfo, baronReveal }, // ✨ 加上 baronReveal
   };
 }
