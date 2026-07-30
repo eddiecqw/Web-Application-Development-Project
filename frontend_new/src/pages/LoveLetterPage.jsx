@@ -56,7 +56,7 @@ export default function LoveLetterPage({ user }) {
   };
 
   const {
-    createRoom, joinRoom, startGame, playCard, leaveRoom, sendEmoji, restartGame,
+    createRoom, joinRoom, startGame, playCard, leaveRoom, sendEmoji, clearPrivateInfo, restartGame,
     gameState: { roomId, roomData, privateInfo, baronReveal }
   } = useLoveLetterSocket(wsUrl, {
     LL_SHOW_EMOJI: (data) => {
@@ -67,41 +67,56 @@ export default function LoveLetterPage({ user }) {
     }
   });
 
+  // ✨ 核心修復：在解析日誌前，先進行暱稱翻譯
   useEffect(() => {
     if (roomData?.actionLog && roomData.actionLog !== currentLog) {
-      const log = roomData.actionLog;
-      setCurrentLog(log);
+      const rawLog = roomData.actionLog;
+      setCurrentLog(rawLog);
+      
+      // 動態翻譯：將 log 內的原始帳號替換為自訂暱稱
+      let translatedLog = rawLog;
+      if (roomData?.players) {
+        roomData.players.forEach(p => {
+          const rawName = p.name.split('@')[0];
+          const nickname = p.nickname || rawName;
+          if (rawName !== nickname) {
+            // 利用 split 與 join 達成全域替換，確保同一句話中出現多次也能被修改
+            translatedLog = translatedLog.split(`【${rawName}】`).join(`【${nickname}】`);
+          }
+        });
+      }
       
       setLogHistory(prev => {
-        if (log === '遊戲開始！') return [log];
-        if (prev[prev.length - 1] === log) return prev;
-        return [...prev, log];
+        if (translatedLog === '遊戲開始！') return [translatedLog];
+        if (prev[prev.length - 1] === translatedLog) return prev;
+        return [...prev, translatedLog];
       });
 
-      if (!log.includes('遊戲開始') && !log.includes('只剩') && !log.includes('牌庫耗盡')) {
+      if (!translatedLog.includes('遊戲開始') && !translatedLog.includes('只剩') && !translatedLog.includes('牌庫耗盡')) {
         let animType = null;
         let emoji = '';
 
-        if (log.includes('[衛兵]')) { animType = 'guard'; emoji = log.includes('出局') ? '🗡️🎯' : '🗡️🛡️'; }
-        else if (log.includes('[神父]')) { animType = 'priest'; emoji = '👁️'; }
-        else if (log.includes('[男爵]')) { animType = 'baron'; emoji = '⚔️'; }
-        else if (log.includes('[侍女]')) { animType = 'handmaid'; emoji = '🛡️✨'; }
-        else if (log.includes('[王子]')) { animType = 'prince'; emoji = '🌪️'; }
-        else if (log.includes('[國王]')) { animType = 'king'; emoji = '🔄'; }
-        else if (log.includes('[伯爵夫人]')) { animType = 'countess'; emoji = '🌹✨'; }
-        else if (log.includes('[公主]')) { animType = 'princess'; emoji = '💔'; }
+        if (translatedLog.includes('[衛兵]')) { animType = 'guard'; emoji = translatedLog.includes('出局') ? '🗡️🎯' : '🗡️🛡️'; }
+        else if (translatedLog.includes('[神父]')) { animType = 'priest'; emoji = '👁️'; }
+        else if (translatedLog.includes('[男爵]')) { animType = 'baron'; emoji = '⚔️'; }
+        else if (translatedLog.includes('[侍女]')) { animType = 'handmaid'; emoji = '🛡️✨'; }
+        else if (translatedLog.includes('[王子]')) { animType = 'prince'; emoji = '🌪️'; }
+        else if (translatedLog.includes('[國王]')) { animType = 'king'; emoji = '🔄'; }
+        else if (translatedLog.includes('[伯爵夫人]')) { animType = 'countess'; emoji = '🌹✨'; }
+        else if (translatedLog.includes('[公主]')) { animType = 'princess'; emoji = '💔'; }
 
         if (animType) {
-          const matches = [...log.matchAll(/【(.*?)】/g)];
+          const matches = [...translatedLog.matchAll(/【(.*?)】/g)];
+          // 因為已經翻譯過，這裡解析出來的就是完美的暱稱了
           const sourceName = matches[0] ? matches[0][1] : '系統';
           const targetName = matches[1] ? matches[1][1] : '對手';
-          const actionText = log.split('，')[1] || log;
+          const actionText = translatedLog.split('，')[1] || translatedLog;
           
           setActiveAnim({ type: animType, emoji, sourceName, targetName, actionText });
         }
       }
     }
-  }, [roomData?.actionLog, currentLog]);
+  }, [roomData?.actionLog, currentLog, roomData?.players]);
 
   useEffect(() => {
     if (activeAnim) {
@@ -215,6 +230,13 @@ export default function LoveLetterPage({ user }) {
     return baseStyle;
   };
 
+  // ✨ 修復遊戲結束面板，確保獲勝者顯示為暱稱
+  const getWinnerDisplayName = () => {
+    if (!roomData?.winner) return '未知';
+    const winnerPlayer = roomData?.players?.find(p => p.name === roomData.winner);
+    return winnerPlayer?.nickname || roomData.winner.split('@')[0];
+  };
+
   if (!roomId) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#121212', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
@@ -237,7 +259,6 @@ export default function LoveLetterPage({ user }) {
             animation: card-fly-and-glow 3s forwards; 
           }
           
-          /* 卡牌飛入中央並發出光芒 */
           @keyframes card-fly-and-glow { 
             0% { transform: translateY(150px) scale(0.5); opacity: 0; filter: drop-shadow(0 0 0 rgba(252,211,77,0)); } 
             15% { transform: translateY(0) scale(1.2); opacity: 1; filter: drop-shadow(0 0 10px rgba(252,211,77,0.5)); } 
@@ -246,7 +267,6 @@ export default function LoveLetterPage({ user }) {
             100% { transform: translateY(-50px) scale(0.5); opacity: 0; } 
           }
 
-          /* 牌背：前段顯示，中段開始消失 (當事人專用) */
           .anim-card-back { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
             border-radius: 8px; object-fit: cover; 
@@ -257,7 +277,6 @@ export default function LoveLetterPage({ user }) {
             45%, 100% { opacity: 0; transform: scale(1.1); } 
           }
 
-          /* 牌面正身：前段隱藏，中段開始浮現 (當事人專用) */
           .anim-card-front { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
             border-radius: 8px; object-fit: cover; 
@@ -268,19 +287,16 @@ export default function LoveLetterPage({ user }) {
             45%, 100% { opacity: 1; transform: scale(1); } 
           }
 
-          /* 旁觀者專用：牌背飛出但不消失，加上疊加符號 */
           .anim-spectator-back {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
             border-radius: 8px; object-fit: cover;
           }
           
-          /* === 男爵對決衝刺動畫 === */
           .anim-clash-left { animation: clash-left 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
           .anim-clash-right { animation: clash-right 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
           @keyframes clash-left { 0% { transform: translateX(-150px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
           @keyframes clash-right { 0% { transform: translateX(150px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
 
-          /* === 其他角色特效 === */
           @keyframes anim-guard { 0% { transform: scale(3) rotate(-45deg); opacity: 0; } 30% { transform: scale(1.2) rotate(10deg); opacity: 1; } 80% { transform: scale(1) rotate(0deg); opacity: 1; } 100% { transform: scale(0.5); opacity: 0; } }
           @keyframes anim-handmaid { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.5); opacity: 1; filter: drop-shadow(0 0 30px #fcd34d); } 100% { transform: scale(1); opacity: 0; } }
           @keyframes anim-prince { 0% { transform: scale(0.1) translateX(-50vw); opacity: 0; } 50% { transform: scale(2) translateX(0) rotate(360deg); opacity: 1; } 100% { transform: scale(0.1) translateX(50vw) rotate(720deg); opacity: 0; } }
@@ -296,7 +312,6 @@ export default function LoveLetterPage({ user }) {
       {activeAnim && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.75)', zIndex: 500, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
            
-           {/* ✨ 神父看牌動畫 (區分當事人與旁觀者) */}
            {activeAnim.type === 'priest' && (
              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
                <div style={{ color: '#fff', fontSize: '1.4rem', fontWeight: 'bold', textShadow: '0 2px 6px #000', zIndex: 10 }}>{activeAnim.targetName} 的手牌</div>
@@ -318,7 +333,6 @@ export default function LoveLetterPage({ user }) {
              </div>
            )}
 
-           {/* ✨ 男爵對決動畫 (區分當事人與旁觀者) */}
            {activeAnim.type === 'baron' && (
              <div style={{ display: 'flex', gap: '15px', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '0 10px' }}>
                <div className="anim-clash-left" style={{ textAlign: 'center', flex: 1 }}>
@@ -363,14 +377,12 @@ export default function LoveLetterPage({ user }) {
              </div>
            )}
 
-           {/* 一般特效 */}
            {activeAnim.type !== 'priest' && activeAnim.type !== 'baron' && (
              <div style={{ fontSize: 'clamp(4rem, 20vw, 7rem)', animation: `anim-${activeAnim.type} 2.2s forwards`, textShadow: '0 0 30px rgba(255,255,255,0.5)' }}>
                {activeAnim.emoji}
              </div>
            )}
 
-           {/* 響應式橫幅 */}
            <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'center', width: '100%', overflow: 'hidden' }}>
              <div style={{ background: 'linear-gradient(90deg, transparent, rgba(127, 29, 29, 0.95) 15%, rgba(127, 29, 29, 0.95) 85%, transparent)', padding: '15px 0', animation: 'banner-fade 2.4s forwards', display: 'flex', justifyContent: 'center', width: '100%' }}>
                <div style={{ color: '#fcd34d', fontSize: 'clamp(1rem, 4.5vw, 1.4rem)', fontWeight: 'bold', textShadow: '2px 2px 4px #000', animation: 'text-fade 2.4s forwards', padding: '0 20px', maxWidth: '90vw', textAlign: 'center', lineHeight: '1.5' }}>
@@ -417,7 +429,8 @@ export default function LoveLetterPage({ user }) {
           {roomData.status === 'game_over' && (
             <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '12px', background: 'rgba(0,0,0,0.9)', padding: '20px 30px', borderRadius: '15px', border: '2px solid #fcd34d', boxShadow: '0 4px 15px rgba(0,0,0,0.8)' }}>
               <div style={{ color: '#fcd34d', fontWeight: 'bold', fontSize: '1.1rem' }}>🎉 遊戲結束！</div>
-              <div style={{ color: '#fff', fontSize: '1rem' }}>【{roomData.winner?.split('@')[0] || '未知'}】贏得了公主的芳心！</div>
+              {/* ✨ 使用翻譯過的名字顯示獲勝者 */}
+              <div style={{ color: '#fff', fontSize: '1rem' }}>【{getWinnerDisplayName()}】贏得了公主的芳心！</div>
               
               {isOwner ? (
                 <button onClick={() => restartGame()} style={{ marginTop: '5px', padding: '10px 20px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>
@@ -430,7 +443,6 @@ export default function LoveLetterPage({ user }) {
           )}
         </div>
 
-        {/* 🌟 核心：移除桌面上的 isBeingViewed 與收起按鈕邏輯 */}
         {opponents.map((opp, index) => (
           <div key={opp.name} style={{ ...getOpponentStyle(index, opponents.length), border: roomData?.turn === opp.name ? '2px solid #fcd34d' : '1px solid rgba(255,255,255,0.1)', opacity: opp.isAlive ? 1 : 0.5 }}>
             {activeEmojis[opp.name] && <div style={{ position: 'absolute', top: '-30px', left: '50%', transform: 'translateX(-50%)', fontSize: '1.5rem', zIndex: 10 }}>{activeEmojis[opp.name]}</div>}
@@ -440,7 +452,6 @@ export default function LoveLetterPage({ user }) {
             </div>
             <div style={{ color: '#fca5a5', fontSize: '0.7rem', marginBottom: '5px' }}>{'❤️'.repeat(opp.tokens)}</div>
             
-            {/* 乾淨的桌面卡牌渲染 */}
             <div style={{ display: 'flex', justifyContent: 'center', transform: 'scale(0.8)', margin: '-10px 0', position: 'relative' }}>
               {opp.isAlive ? (
                 opp.hand?.map((c, i) => renderCard(c, null, false, false, `opp-${opp.name}-${i}`))
