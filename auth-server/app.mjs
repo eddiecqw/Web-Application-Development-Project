@@ -1,10 +1,7 @@
 import express from 'express';
 import { WebSocketServer } from 'ws';
-// ✨ 將 cleanupNiuNiuConnection 也引入進來
 import { handleNiuNiuMessage, niuniuRooms, cleanupNiuNiuConnection } from './niuniuHandler.mjs';
-// ✨ 新增 21 點模組
 import { handleBlackjackMessage, blackjackRooms, cleanupBlackjackConnection } from './blackjackHandler.mjs';
-// ✨ 新增 Love Letter 模組
 import { handleLoveLetterMessage, loveletterRooms, cleanupLoveLetterConnection } from './loveletterHandler.mjs';
 import cors from 'cors';
 import { MongoClient, ServerApiVersion } from 'mongodb';
@@ -75,7 +72,6 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/check-account', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ success: false, message: 'Missing email' });
-
   try {
     const user = await db.collection('User').findOne({ email });
     res.json({ success: true, userExists: !!user });
@@ -102,12 +98,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/rooms', (req, res) => {
   try {
     const rooms = Object.keys(gameRooms).map(roomId => {
-      return {
-        roomId,
-        playerCount: gameRooms[roomId].players.length,
-        hasTimeLimit: gameRooms[roomId].hasTimeLimit || false,
-        timeLimit: gameRooms[roomId].timeLimit || 60
-      };
+      return { roomId, playerCount: gameRooms[roomId].players.length, hasTimeLimit: gameRooms[roomId].hasTimeLimit || false, timeLimit: gameRooms[roomId].timeLimit || 60 };
     });
     res.json({ success: true, rooms });
   } catch (error) {
@@ -115,49 +106,27 @@ app.get('/api/rooms', (req, res) => {
   }
 });
 
-//新增牛牛專屬apiget
 app.get('/api/niuniu-rooms', (req, res) => {
   try {
-    const rooms = Object.values(niuniuRooms).map(room => ({
-      roomId: room.id,
-      playerCount: room.players.length,
-      timeLimit: room.settings ? room.settings.timeLimit : 30,
-      status: room.status,
-      owner: room.owner
-    }));
+    const rooms = Object.values(niuniuRooms).map(room => ({ roomId: room.id, playerCount: room.players.length, timeLimit: room.settings ? room.settings.timeLimit : 30, status: room.status, owner: room.owner }));
     res.json({ success: true, rooms });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
-// ✨ 新增 21 點專屬 API
 app.get('/api/blackjack-rooms', (req, res) => {
   try {
-    const rooms = Object.values(blackjackRooms).map(room => ({
-      roomId: room.id,
-      playerCount: room.players.length,
-      timeLimit: room.settings.timeLimit,
-      baseBet: room.settings.baseBet,
-      status: room.status,
-      owner: room.owner
-    }));
+    const rooms = Object.values(blackjackRooms).map(room => ({ roomId: room.id, playerCount: room.players.length, timeLimit: room.settings.timeLimit, baseBet: room.settings.baseBet, status: room.status, owner: room.owner }));
     res.json({ success: true, rooms });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
-// ✨ 新增 Love Letter 專屬 API
 app.get('/api/loveletter-rooms', (req, res) => {
   try {
-    const rooms = Object.values(loveletterRooms).map(room => ({
-      roomId: room.id,
-      playerCount: room.players.length,
-      winTokens: room.settings.winTokens,
-      status: room.status,
-      owner: room.owner
-    }));
+    const rooms = Object.values(loveletterRooms).map(room => ({ roomId: room.id, playerCount: room.players.length, winTokens: room.settings.winTokens, status: room.status, owner: room.owner }));
     res.json({ success: true, rooms });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -168,11 +137,7 @@ function broadcastSystemStatus() {
   const totalOnline = Object.keys(connections).length;
   const mapUsers = Object.values(connections).filter(conn => conn._location).length;
   
-  const statusMsg = JSON.stringify([{
-    type: 'SYSTEM_STATUS',
-    data: { online: totalOnline, map: mapUsers }
-  }]);
-  
+  const statusMsg = JSON.stringify([{ type: 'SYSTEM_STATUS', data: { online: totalOnline, map: mapUsers } }]);
   Object.values(connections).forEach((conn) => {
     if (conn.readyState === 1) conn.send(statusMsg);
   });
@@ -181,17 +146,10 @@ function broadcastSystemStatus() {
 wsServer.on('connection', async (connection, request) => {
   const { username } = url.parse(request.url, true).query;
   
-  const existingUuid = Object.keys(connections).find(
-    (key) => connections[key]._username === username
-  );
+  const existingUuid = Object.keys(connections).find((key) => connections[key]._username === username);
 
   if (existingUuid) {
-    connections[existingUuid].send(
-      JSON.stringify([{
-        type: 'system',
-        content: '⚠️ 您的帳號已在其他裝置或分頁登入，此連線即將中斷。'
-      }])
-    );
+    connections[existingUuid].send(JSON.stringify([{ type: 'system', content: '⚠️ 您的帳號已在其他裝置或分頁登入，此連線即將中斷。' }]));
     connections[existingUuid].close(1008, 'Logged in from another device');
     delete connections[existingUuid];
   }
@@ -201,13 +159,8 @@ wsServer.on('connection', async (connection, request) => {
   connection._username = username;
 
   try {
-    const messages = await db
-      .collection('ChatMessages')
-      .find()
-      .sort({ timestamp: -1 })
-      .limit(20) 
-      .toArray();
-
+    // 因為系統與遊客訊息不再存入 MongoDB，初始載入將只會是最純淨的會員交流紀錄！
+    const messages = await db.collection('ChatMessages').find().sort({ timestamp: -1 }).limit(20).toArray();
     connection.send(JSON.stringify(messages.reverse()));
   } catch (error) {}
 
@@ -215,78 +168,44 @@ wsServer.on('connection', async (connection, request) => {
 
   connection.on('message', async (message) => {
     let parsed;
-    try {
-      parsed = JSON.parse(message.toString());
-    } catch (err) {
-      return;
-    }
+    try { parsed = JSON.parse(message.toString()); } catch (err) { return; }
 
     const { type, data } = parsed;
+    
+    // 遊戲房間建立
     if (type && type.startsWith('NIUNIU_')) {
       data.username = connection._username || data.username; 
-
-      // ✨ 定義回調函數，當房間建立時寫入 MongoDB 並廣播聊天室
       const callbacks = {
         onRoomCreated: async (newRoomId) => {
-          const systemMessage = {
-            sender: 'System',
-            content: `🃏 撲克鬥牛房間 [${newRoomId}] 已創建，快來加入挑戰吧！`,
-            timestamp: new Date(),
-            type: 'system'
-          };
-          try {
-            await db.collection('ChatMessages').insertOne(systemMessage);
-          } catch (error) {}
-
-          Object.values(connections).forEach((conn) => {
-            if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage]));
-          });
+          const systemMessage = { sender: 'System', content: `🃏 撲克鬥牛房間 [${newRoomId}] 已創建，快來加入挑戰吧！`, timestamp: new Date(), type: 'system', channel: 'system' };
+          // 🛑 核心修改：系統廣播閱後即焚，不再寫入 DB
+          Object.values(connections).forEach((conn) => { if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage])); });
         }
       };
-
-      // ✨ 將 callbacks 傳給 handler
       handleNiuNiuMessage(connection, type, data, wsServer, callbacks);
       return; 
     }
 
-    // ✨ 新增：攔截並處理 21 點的事件
     if (type && type.startsWith('BJ_')) {
       data.username = connection._username || data.username; 
-
       const callbacks = {
         onRoomCreated: async (newRoomId, gameName) => {
-          const systemMessage = {
-            sender: 'System',
-            content: `🃏 ${gameName} 房間 [${newRoomId}] 已創建，快來加入挑戰吧！`,
-            timestamp: new Date(),
-            type: 'system'
-          };
-          try { await db.collection('ChatMessages').insertOne(systemMessage); } catch (e) {}
-          Object.values(connections).forEach((conn) => {
-            if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage]));
-          });
+          const systemMessage = { sender: 'System', content: `🃏 ${gameName} 房間 [${newRoomId}] 已創建，快來加入挑戰吧！`, timestamp: new Date(), type: 'system', channel: 'system' };
+          // 🛑 核心修改：系統廣播閱後即焚，不再寫入 DB
+          Object.values(connections).forEach((conn) => { if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage])); });
         }
       };
       handleBlackjackMessage(connection, type, data, wsServer, callbacks);
       return; 
     }
 
-    // ✨ 新增：攔截並處理 Love Letter 的事件
     if (type && type.startsWith('LL_')) {
       data.username = connection._username || data.username; 
-      
       const callbacks = {
         onRoomCreated: async (newRoomId, gameName) => {
-          const systemMessage = {
-            sender: 'System',
-            content: `💌 ${gameName} 房間 [${newRoomId}] 已創建，快來拆開情書吧！`,
-            timestamp: new Date(),
-            type: 'system'
-          };
-          try { await db.collection('ChatMessages').insertOne(systemMessage); } catch (e) {}
-          Object.values(connections).forEach((conn) => {
-            if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage]));
-          });
+          const systemMessage = { sender: 'System', content: `💌 ${gameName} 房間 [${newRoomId}] 已創建，快來拆開情書吧！`, timestamp: new Date(), type: 'system', channel: 'system' };
+          // 🛑 核心修改：系統廣播閱後即焚，不再寫入 DB
+          Object.values(connections).forEach((conn) => { if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage])); });
         }
       };
       handleLoveLetterMessage(connection, type, data, wsServer, callbacks);
@@ -299,81 +218,62 @@ wsServer.on('connection', async (connection, request) => {
         const skip = data.skip || 0;
         const limit = data.limit || 50;
         try {
-          const moreMsgs = await db.collection('ChatMessages')
-            .find()
-            .sort({ timestamp: -1 })
-            .skip(skip)
-            .limit(limit)
-            .toArray();
-            
-          connection.send(JSON.stringify({
-            type: 'MORE_HISTORY',
-            data: moreMsgs.reverse()
-          }));
-        } catch (error) {
-          console.error('❌ Error fetching history:', error);
-        }
+          const moreMsgs = await db.collection('ChatMessages').find().sort({ timestamp: -1 }).skip(skip).limit(limit).toArray();
+          connection.send(JSON.stringify({ type: 'MORE_HISTORY', data: moreMsgs.reverse() }));
+        } catch (error) { console.error('❌ Error fetching history:', error); }
         break;
       }
 
+      // ✨ 聊天系統全面升級
       case 'CHAT_MESSAGE': {
+        const isGuest = /^guest_/i.test(username); // 判斷是否為遊客
+        const channel = data.roomId ? 'room' : 'world';
+
         const newMessage = {
+          id: uuidv4(), // 提供一個獨立ID，避免 MongoDB 未建立時 React 缺少 key
           sender: username,
           content: data.content,
           timestamp: new Date(),
           type: data.type || 'text',
           mimeType: data.mimeType || null,
           filename: data.filename || null,
-          // ✨ 關鍵修復：接住前端傳來的回覆資訊，並存進 MongoDB
-          replyTo: data.replyTo || null, 
+          replyTo: data.replyTo || null,
+          isGuest: isGuest,
+          channel: channel
         };
 
-        try {
-          await db.collection('ChatMessages').insertOne(newMessage);
-        } catch (error) {}
+        // 🛑 核心修改：只有「註冊會員」且「在世界大廳發言」的訊息，才永久保留在 MongoDB！
+        if (!isGuest && channel === 'world') {
+          try {
+            await db.collection('ChatMessages').insertOne(newMessage);
+          } catch (error) {}
+        }
 
-        Object.values(connections).forEach((conn) => {
-          conn.send(JSON.stringify([newMessage]));
-        });
+        // 空間隔離廣播：如果是房間訊息就只傳給房間，不然就傳給所有人
+        if (channel === 'room') {
+          broadcastToRoom(data.roomId, [newMessage]);
+        } else {
+          Object.values(connections).forEach((conn) => {
+            if (conn.readyState === 1) conn.send(JSON.stringify([newMessage]));
+          });
+        }
         break;
       }
       
       case 'USER_POSITION_UPDATE': {
         const { latitude, longitude } = data;
         connection._location = { latitude, longitude, username };
-      
         broadcastSystemStatus();
 
         Object.values(connections).forEach((conn) => {
           if (conn !== connection && conn.readyState === 1) {
-            conn.send(
-              JSON.stringify({
-                type: 'USER_POSITION',
-                data: {
-                  username,
-                  latitude,
-                  longitude,
-                },
-              })
-            );
+            conn.send(JSON.stringify({ type: 'USER_POSITION', data: { username, latitude, longitude } }));
           }
         });
       
-        const others = Object.values(connections)
-          .filter((conn) => conn !== connection && conn._location)
-          .map((conn) => ({
-            username: conn._username,
-            latitude: conn._location.latitude,
-            longitude: conn._location.longitude,
-          }));
-      
+        const others = Object.values(connections).filter((conn) => conn !== connection && conn._location).map((conn) => ({ username: conn._username, latitude: conn._location.latitude, longitude: conn._location.longitude }));
         if (others.length > 0) {
-          connection.send(
-            JSON.stringify({
-              type: 'EXISTING_USER_POSITIONS',
-              data: others,
-            })
-          );
+          connection.send(JSON.stringify({ type: 'EXISTING_USER_POSITIONS', data: others }));
         }
         break;
       }
@@ -384,12 +284,7 @@ wsServer.on('connection', async (connection, request) => {
         
         Object.values(connections).forEach((conn) => {
           if (conn !== connection && conn.readyState === 1) {
-            conn.send(
-              JSON.stringify({
-                type: 'USER_LEFT_MAP',
-                data: { username }
-              })
-            );
+            conn.send(JSON.stringify({ type: 'USER_LEFT_MAP', data: { username } }));
           }
         });
         break;
@@ -400,108 +295,44 @@ wsServer.on('connection', async (connection, request) => {
         const playerId = uuidv4();
         const word = GAME_WORDS[Math.floor(Math.random() * GAME_WORDS.length)];
         const player = { id: playerId, name: username, score: 0, isPainter: true };
-        
         const hasTimeLimit = data.hasTimeLimit || false;
         const timeLimit = data.timeLimit || 60;
         
-        gameRooms[roomId] = {
-          players: [player],
-          painterId: playerId,
-          word,
-          hasTimeLimit, 
-          timeLimit,    
-          scoreHistory: { [username]: 0 } 
-        };
-      
+        gameRooms[roomId] = { players: [player], painterId: playerId, word, hasTimeLimit, timeLimit, scoreHistory: { [username]: 0 } };
         connection._roomId = roomId;
         connection._playerId = playerId;
       
-        const systemMessage = {
-          sender: 'System',
-          content: `房间 ${roomId} 已创建，输入 /join ${roomId} 加入游戏`,
-          timestamp: new Date(),
-          type: 'system'
-        };
+        const systemMessage = { sender: 'System', content: `房間 ${roomId} 已創建，輸入 /join ${roomId} 加入遊戲`, timestamp: new Date(), type: 'system', channel: 'system' };
+        
+        // 🛑 核心修改：系統廣播閱後即焚，不再寫入 DB
+        Object.values(connections).forEach((conn) => { conn.send(JSON.stringify([systemMessage])); });
       
-        try {
-          await db.collection('ChatMessages').insertOne(systemMessage);
-        } catch (error) {}
-      
-        Object.values(connections).forEach((conn) => {
-          conn.send(JSON.stringify([systemMessage]));
-        });
-      
-        connection.send(
-          JSON.stringify({
-            type: 'GAME_ROOM_CREATED',
-            data: {
-              roomId,
-              players: gameRooms[roomId].players,
-              isPainter: true,
-              playerId,
-              word,
-              hasTimeLimit, 
-              timeLimit
-            },
-          })
-        );
+        connection.send(JSON.stringify({ type: 'GAME_ROOM_CREATED', data: { roomId, players: gameRooms[roomId].players, isPainter: true, playerId, word, hasTimeLimit, timeLimit } }));
         break;
       }
 
       case 'GAME_JOIN_ROOM': {
         const { roomId } = data;
         const room = gameRooms[roomId];
-        if (!room) {
-          return connection.send(
-            JSON.stringify({
-              type: 'GAME_ERROR',
-              data: { message: '房间不存在' },
-            })
-          );
-        }
+        if (!room) { return connection.send(JSON.stringify({ type: 'GAME_ERROR', data: { message: '房间不存在' } })); }
 
         const playerId = uuidv4();
-        // ✨ 新增：去檔案庫檢查這個玩家之前有沒有分數，沒有的話就是 0
         const previousScore = room.scoreHistory[username] || 0;
-        const player = {
-          id: playerId,
-          name: username,
-          score: previousScore, // ✨ 恢復歷史分數
-          isPainter: false,
-        };
+        const player = { id: playerId, name: username, score: previousScore, isPainter: false };
 
         room.players.push(player);
         connection._roomId = roomId;
         connection._playerId = playerId;
 
-        connection.send(
-          JSON.stringify({
-            type: 'GAME_JOINED',
-            data: {
-              roomId,
-              players: room.players,
-              isPainter: false,
-              playerId,
-              hasTimeLimit: room.hasTimeLimit,
-              timeLimit: room.timeLimit
-            },
-          })
-        );
-
-        broadcastToRoom(roomId, {
-          type: 'GAME_PLAYER_UPDATE',
-          data: { players: room.players },
-        });
+        connection.send(JSON.stringify({ type: 'GAME_JOINED', data: { roomId, players: room.players, isPainter: false, playerId, hasTimeLimit: room.hasTimeLimit, timeLimit: room.timeLimit } }));
+        broadcastToRoom(roomId, { type: 'GAME_PLAYER_UPDATE', data: { players: room.players } });
         break;
       }
 
       case 'GAME_DRAW_DATA': {
         const roomId = connection._roomId;
         if (!roomId) return;
-        broadcastToRoom(roomId, {
-          type: 'GAME_DRAW_DATA',
-          data: { path: data.path } 
-        });
+        broadcastToRoom(roomId, { type: 'GAME_DRAW_DATA', data: { path: data.path } });
         break;
       }
 
@@ -509,23 +340,14 @@ wsServer.on('connection', async (connection, request) => {
         const roomId = connection._roomId;
         if (!roomId) return;
         const room = gameRooms[roomId];
-      
         const isCorrect = data.guess === room.word;
         let scoreUpdate = {};
       
         if (isCorrect) {
           const guesser = room.players.find(p => p.id === connection._playerId);
-          if (guesser) {
-            guesser.score += 100;
-            scoreUpdate[guesser.id] = guesser.score;
-            room.scoreHistory[guesser.name] = guesser.score;// ✨ 同步更新到檔案庫
-          }
+          if (guesser) { guesser.score += 100; scoreUpdate[guesser.id] = guesser.score; room.scoreHistory[guesser.name] = guesser.score; }
           const painter = room.players.find(p => p.id === room.painterId);
-          if (painter) {
-            painter.score += 50;
-            scoreUpdate[painter.id] = painter.score;
-            room.scoreHistory[painter.name] = painter.score; // ✨ 同步更新到檔案庫
-          }
+          if (painter) { painter.score += 50; scoreUpdate[painter.id] = painter.score; room.scoreHistory[painter.name] = painter.score; }
       
           const currentPainterIndex = room.players.findIndex(p => p.id === room.painterId);
           const nextPainterIndex = (currentPainterIndex + 1) % room.players.length;
@@ -535,28 +357,10 @@ wsServer.on('connection', async (connection, request) => {
           room.players.forEach(p => p.isPainter = (p.id === room.painterId));
           room.word = GAME_WORDS[Math.floor(Math.random() * GAME_WORDS.length)];
       
-          broadcastToRoom(roomId, {
-            type: 'GAME_NEW_ROUND',
-            data: {
-              players: room.players,
-              word: room.word,
-              painterId: room.painterId,
-              hasTimeLimit: room.hasTimeLimit,
-              timeLimit: room.timeLimit
-            }
-          });
+          broadcastToRoom(roomId, { type: 'GAME_NEW_ROUND', data: { players: room.players, word: room.word, painterId: room.painterId, hasTimeLimit: room.hasTimeLimit, timeLimit: room.timeLimit } });
         }
       
-        broadcastToRoom(roomId, {
-          type: 'GAME_GUESS_RESULT',
-          data: {
-            playerName: username,
-            guess: data.guess,
-            isCorrect,
-            scoreUpdate,
-            correctWord: isCorrect ? room.word : null
-          }
-        });
+        broadcastToRoom(roomId, { type: 'GAME_GUESS_RESULT', data: { playerName: username, guess: data.guess, isCorrect, scoreUpdate, correctWord: isCorrect ? room.word : null } });
         break;
       }
     }
@@ -564,11 +368,8 @@ wsServer.on('connection', async (connection, request) => {
 
   connection.on('close', () => {
     if (connection._username) {
-      // ✨ 新增：斷線時清理牛牛房間
       cleanupNiuNiuConnection(connection._username, connection._niuniuRoomId, wsServer);
-      // ✨ 新增 21 點的斷線清理
       cleanupBlackjackConnection(connection._username, connection._bjRoomId, wsServer);
-      // ✨ 新增 Love Letter 的斷線清理
       cleanupLoveLetterConnection(connection._username, connection._llRoomId, wsServer);
     }
     const roomId = connection._roomId;
@@ -584,26 +385,12 @@ wsServer.on('connection', async (connection, request) => {
         if (room.painterId === playerId) {
           room.painterId = room.players[0].id;
           room.players.forEach(p => p.isPainter = (p.id === room.painterId));
-          
-          broadcastToRoom(roomId, {
-            type: 'GAME_NEW_ROUND',
-            data: {
-              players: room.players,
-              word: room.word,
-              painterId: room.painterId,
-              hasTimeLimit: room.hasTimeLimit,
-              timeLimit: room.timeLimit
-            },
-          });
+          broadcastToRoom(roomId, { type: 'GAME_NEW_ROUND', data: { players: room.players, word: room.word, painterId: room.painterId, hasTimeLimit: room.hasTimeLimit, timeLimit: room.timeLimit } });
         } else {
-          broadcastToRoom(roomId, {
-            type: 'GAME_PLAYER_UPDATE',
-            data: { players: room.players },
-          });
+          broadcastToRoom(roomId, { type: 'GAME_PLAYER_UPDATE', data: { players: room.players } });
         }
       }
     }
-    
     delete connections[uuid]; 
     broadcastSystemStatus();
   });
