@@ -160,7 +160,15 @@ wsServer.on('connection', async (connection, request) => {
 
   try {
     // 因為系統與遊客訊息不再存入 MongoDB，初始載入將只會是最純淨的會員交流紀錄！
-    const messages = await db.collection('ChatMessages').find().sort({ timestamp: -1 }).limit(20).toArray();
+    // ✨ 核心修復 1：過濾掉舊版寫入的 system 訊息與 guest_ 開頭的遊客訊息
+    const messages = await db.collection('ChatMessages')
+      .find({
+        type: { $ne: 'system' },           // 不撈取系統訊息
+        sender: { $not: /^guest_/i }       // 不撈取遊客訊息
+      })
+      .sort({ timestamp: -1 })
+      .limit(20)
+      .toArray();
     connection.send(JSON.stringify({ type: 'INITIAL_HISTORY', data: messages.reverse() }));
   } catch (error) {}
   
@@ -220,7 +228,16 @@ wsServer.on('connection', async (connection, request) => {
         const skip = data.skip || 0;
         const limit = data.limit || 50;
         try {
-          const moreMsgs = await db.collection('ChatMessages').find().sort({ timestamp: -1 }).skip(skip).limit(limit).toArray();
+          // ✨ 核心修復 2：載入更多時，也要套用相同的過濾規則
+          const moreMsgs = await db.collection('ChatMessages')
+            .find({
+              type: { $ne: 'system' },
+              sender: { $not: /^guest_/i }
+            })
+            .sort({ timestamp: -1 })
+            .skip(skip)
+            .limit(limit)
+            .toArray();
           connection.send(JSON.stringify({ type: 'MORE_HISTORY', data: moreMsgs.reverse() }));
         } catch (error) { console.error('❌ Error fetching history:', error); }
         break;
