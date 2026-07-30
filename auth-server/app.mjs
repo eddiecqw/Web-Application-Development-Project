@@ -161,10 +161,12 @@ wsServer.on('connection', async (connection, request) => {
   try {
     // 因為系統與遊客訊息不再存入 MongoDB，初始載入將只會是最純淨的會員交流紀錄！
     const messages = await db.collection('ChatMessages').find().sort({ timestamp: -1 }).limit(20).toArray();
-    connection.send(JSON.stringify(messages.reverse()));
+    connection.send(JSON.stringify({ type: 'INITIAL_HISTORY', data: messages.reverse() }));
   } catch (error) {}
-
-  broadcastSystemStatus();
+  
+  setTimeout(() => {
+    broadcastSystemStatus();
+  }, 100);
 
   connection.on('message', async (message) => {
     let parsed;
