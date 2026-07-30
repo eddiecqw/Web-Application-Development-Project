@@ -15,14 +15,21 @@ export function Home({ username ,onLogout}) {
   const [onlineCount, setOnlineCount] = useState(1);
   const [mapCount, setMapCount] = useState(0);
   
-  // ✨ 新增：聊天室 Tab 分流狀態
   const [activeTab, setActiveTab] = useState('world'); 
+  // ✨ 核心修復 1：用 Ref 追蹤當前的 Tab，避免切換 Tab 時重複觸發訊息接收
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
 
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
 
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadSystemCount, setUnreadSystemCount] = useState(0);
+  const [toastMsg, setToastMsg] = useState(null);
+
   const chatBoxRef = useRef(null);
   const messagesEndRef = useRef(null);
   const isAtBottomRef = useRef(true); 
@@ -63,13 +70,39 @@ export function Home({ username ,onLogout}) {
     setIsLoadingHistory(true);
     isLoadingMoreRef.current = true;
     if (chatBoxRef.current) scrollDistanceToBottomRef.current = chatBoxRef.current.scrollHeight - chatBoxRef.current.scrollTop;
-    sendJsonMessage({ type: 'LOAD_MORE_MESSAGES', data: { skip: messages.length, limit: 50 } });
+    
+    const dbMessageCount = messages.filter(m => m.type !== 'system' && !/^guest_/i.test(m.sender) && !m.isGuest && m.channel !== 'room').length;
+    sendJsonMessage({ type: 'LOAD_MORE_MESSAGES', data: { skip: dbMessageCount, limit: 50 } });
   };
+
+  useEffect(() => {
+    if (toastMsg) {
+      const timer = setTimeout(() => setToastMsg(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMsg]);
 
   useEffect(() => {
     if (!lastJsonMessage) return;
 
-    if (Array.isArray(lastJsonMessage)) {
+    if (lastJsonMessage.type === 'INITIAL_HISTORY') {
+      const historyMsgs = lastJsonMessage.data;
+      if (historyMsgs && historyMsgs.length > 0) {
+        setMessages(historyMsgs);
+        forceScrollRef.current = true; 
+      }
+    } 
+    else if (lastJsonMessage.type === 'MORE_HISTORY') {
+      setIsLoadingHistory(false);
+      const historyMsgs = lastJsonMessage.data;
+      if (historyMsgs.length > 0) {
+        setMessages((prev) => [...historyMsgs, ...prev]);
+        if (historyMsgs.length < 50) setHasMore(false);
+      } else {
+        setHasMore(false); isLoadingMoreRef.current = false;
+      }
+    } 
+    else if (Array.isArray(lastJsonMessage)) {
       const statusMsg = lastJsonMessage.find(msg => msg?.type === 'SYSTEM_STATUS');
       if (statusMsg) {
         setOnlineCount(statusMsg.data.online);
@@ -79,32 +112,35 @@ export function Home({ username ,onLogout}) {
       const validMessages = lastJsonMessage.filter(msg => msg?.type === 'text' || msg?.type === 'file' || msg?.type === 'system');
     
       if (validMessages.length > 0) {
+        const sysMsgs = validMessages.filter(m => m.type === 'system');
+        if (sysMsgs.length > 0) {
+          setToastMsg(sysMsgs[sysMsgs.length - 1].content);
+          // ✨ 使用 activeTabRef 來判斷，就不會產生依賴連鎖反應
+          if (activeTabRef.current !== 'system') setUnreadSystemCount(c => c + sysMsgs.length);
+        }
+
         setMessages((prev) => {
-          const isInitialLoad = prev.length === 0;
           const hasMyMessage = validMessages.some(m => m.sender === username);
-          if (isInitialLoad || isAtBottomRef.current || hasMyMessage) forceScrollRef.current = true;
-          else setUnreadCount(c => c + validMessages.length);
+          if (isAtBottomRef.current || hasMyMessage) {
+            forceScrollRef.current = true;
+          } else {
+            // ✨ 同樣使用 activeTabRef
+            const visibleMsgs = validMessages.filter(m => (activeTabRef.current === 'world' && m.type !== 'system') || (activeTabRef.current === 'system' && m.type === 'system'));
+            if (visibleMsgs.length > 0) setUnreadCount(c => c + visibleMsgs.length);
+          }
           return [...prev, ...validMessages];
         });
       }
-    } else if (lastJsonMessage.type === 'MORE_HISTORY') {
-      setIsLoadingHistory(false);
-      const historyMsgs = lastJsonMessage.data;
-      if (historyMsgs.length > 0) {
-        setMessages((prev) => [...historyMsgs, ...prev]);
-        if (historyMsgs.length < 50) setHasMore(false);
-      } else {
-        setHasMore(false); isLoadingMoreRef.current = false;
-      }
     }
-  }, [lastJsonMessage, username]);
+  // ✨ 核心修復 2：從依賴陣列中徹底移除 activeTab，解決切換 Tab 會重複跑馬燈與重複訊息的 Bug！
+  }, [lastJsonMessage, username]); 
 
   useEffect(() => {
     if (forceScrollRef.current) {
       requestAnimationFrame(() => scrollToBottom());
       forceScrollRef.current = false;
     }
-  }, [messages, activeTab]); // 切換 Tab 時也會自動捲到底部
+  }, [messages, activeTab]);
 
   useLayoutEffect(() => {
     if (isLoadingMoreRef.current && chatBoxRef.current) {
@@ -160,19 +196,13 @@ export function Home({ username ,onLogout}) {
     return null;
   };
 
-  // ✨ 核心修復：視覺化尊榮徽章
   const renderBadge = (msg) => {
-    if (msg.type === 'system' || msg.sender === 'System') {
-      return <span style={{ background: '#dc2626', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', marginRight: '5px' }}>📢 系統</span>;
-    }
+    if (msg.type === 'system' || msg.sender === 'System') return <span style={{ background: '#dc2626', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', marginRight: '5px' }}>📢 系統</span>;
     const isGuest = /^guest_/i.test(msg.sender) || msg.isGuest;
-    if (isGuest) {
-      return <span style={{ background: '#4b5563', color: '#d1d5db', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', marginRight: '5px' }}>👤 遊客</span>;
-    }
+    if (isGuest) return <span style={{ background: '#4b5563', color: '#d1d5db', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', marginRight: '5px' }}>👤 遊客</span>;
     return <span style={{ background: 'linear-gradient(45deg, #f59e0b, #d97706)', color: '#fffbeb', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', marginRight: '5px', boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>⭐ 會員</span>;
   };
 
-  // ✨ 過濾要在畫面上顯示的訊息 (過濾掉系統訊息或大廳訊息)
   const filteredMessages = messages.filter(msg => {
     if (activeTab === 'world') return msg.type !== 'system';
     if (activeTab === 'system') return msg.type === 'system';
@@ -182,8 +212,35 @@ export function Home({ username ,onLogout}) {
   return (
     <div className="chat-container">
       <div className="background-blur" />
-      <div className="content-wrapper">
+      
+      <style>
+        {`
+          @keyframes toast-fade {
+            0% { opacity: 0; transform: translate(-50%, -20px); }
+            10% { opacity: 1; transform: translate(-50%, 0); }
+            90% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -20px); }
+          }
+        `}
+      </style>
+
+      <div className="content-wrapper" style={{ position: 'relative' }}>
         
+        {/* ✨ 核心修復 3：全域系統浮動提示 (解決文字超出螢幕的問題) */}
+        {toastMsg && activeTab === 'world' && (
+          <div style={{ 
+            position: 'absolute', top: '15px', left: '50%', transform: 'translate(-50%, 0)', 
+            zIndex: 100, background: 'rgba(0,0,0,0.85)', color: '#fcd34d', 
+            padding: '10px 20px', borderRadius: '25px', fontSize: '0.9rem', 
+            fontWeight: 'bold', boxShadow: '0 4px 15px rgba(0,0,0,0.4)', 
+            border: '1px solid #b45309', 
+            maxWidth: '90vw', wordBreak: 'break-word', textAlign: 'center', whiteSpace: 'normal', lineHeight: '1.4', /* ✨ 允許換行且限制寬度 */
+            animation: 'toast-fade 3.5s forwards', pointerEvents: 'none' 
+          }}>
+            🔔 {toastMsg}
+          </div>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <h1 className='rainbow-text' style={{ margin: 0 }}>Chat Room</h1>
           <div style={{ display: 'flex', gap: '15px', background: 'rgba(255,255,255,0.75)', padding: '8px 16px', borderRadius: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', fontWeight: 'bold', fontSize: '0.9rem' }}>
@@ -206,7 +263,6 @@ export function Home({ username ,onLogout}) {
   
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', flex: 1, overflow: 'hidden', minHeight: '200px' }}>
           
-          {/* ✨ 頻道切換標籤 UI */}
           <div style={{ display: 'flex', gap: '5px', padding: '0 15px', marginTop: '5px' }}>
             <button 
               onClick={() => { setActiveTab('world'); forceScrollRef.current = true; }}
@@ -215,14 +271,27 @@ export function Home({ username ,onLogout}) {
               🌍 綜合大廳
             </button>
             <button 
-              onClick={() => { setActiveTab('system'); forceScrollRef.current = true; }}
-              style={{ flex: 1, padding: '10px', borderRadius: '12px 12px 0 0', border: 'none', background: activeTab === 'system' ? '#fff' : 'rgba(255,255,255,0.4)', fontWeight: 'bold', cursor: 'pointer', borderBottom: activeTab === 'system' ? '4px solid #f44336' : '4px solid transparent', color: activeTab === 'system' ? '#333' : '#666', transition: 'all 0.2s' }}
+              onClick={() => { setActiveTab('system'); setUnreadSystemCount(0); forceScrollRef.current = true; }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', flex: 1, padding: '10px', borderRadius: '12px 12px 0 0', border: 'none', background: activeTab === 'system' ? '#fff' : 'rgba(255,255,255,0.4)', fontWeight: 'bold', cursor: 'pointer', borderBottom: activeTab === 'system' ? '4px solid #f44336' : '4px solid transparent', color: activeTab === 'system' ? '#333' : '#666', transition: 'all 0.2s' }}
             >
               📢 系統廣播
+              {unreadSystemCount > 0 && activeTab !== 'system' && (
+                <span style={{ background: '#ef4444', color: 'white', padding: '1px 6px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
+                  {unreadSystemCount}
+                </span>
+              )}
             </button>
           </div>
 
           <div className="chat-box" ref={chatBoxRef} onScroll={handleScroll} style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '15px', overflowY: 'auto', flex: 1, background: '#fff', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
+            {activeTab === 'system' && filteredMessages.length === 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9ca3af', gap: '10px' }}>
+                <span style={{ fontSize: '3rem' }}>📭</span>
+                <p>目前沒有新的系統廣播</p>
+                <p style={{ fontSize: '0.75rem' }}>(系統廣播為閱後即焚，重整後將會清空)</p>
+              </div>
+            )}
+
             {hasMore && filteredMessages.length >= 20 && activeTab === 'world' && (
               <button 
                 onClick={loadMoreMessages} disabled={isLoadingHistory}
@@ -248,7 +317,6 @@ export function Home({ username ,onLogout}) {
 
               return (
                 <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: isOwnMessage ? 'flex-end' : 'flex-start', width: '100%', opacity: isGuest ? 0.85 : 1 }}>
-                  {/* ✨ 訊息頂部的名稱與標籤 */}
                   <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: '#888', marginBottom: '4px', padding: '0 5px' }}>
                     {!isOwnMessage && renderBadge(msg)}
                     <span>{msg.sender.split('@')[0]}</span>
