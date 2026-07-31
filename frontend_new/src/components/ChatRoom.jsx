@@ -252,13 +252,40 @@ export function Home({ username ,onLogout}) {
         <div className='name' style={{ marginTop: '5px' }}>Some extra functions:</div>
         
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', margin: '15px 0' }}>
-          <Link to="/blackjack"><button className="nav-button">🎰 21點 Blackjack</button></Link>
-          <Link to="/niuniu"><button className="nav-button">🃏 撲克鬥牛</button></Link>
-          <button onClick={() => navigate('/loveletter')} className="nav-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: 'linear-gradient(135deg, #7f1d1d 0%, #4a0404 100%)', color: '#fcd34d', border: '1px solid #b45309', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>
-            <span style={{ fontSize: '1.2rem' }}>💌</span> 情書
+          <button 
+            onClick={() => navigate('/blackjack')} 
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '30px', padding: '0 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', textShadow: '1px 1px 2px rgba(0,0,0,0.8)', boxSizing: 'border-box', background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: '#93c5fd', border: '1px solid #334155' }}
+          >
+            <span style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}>🎰</span> 21點
           </button>
-          <Link to="/map"><button className="nav-button">🌏 View Map</button></Link>
-          <Link to="/draw-guess"><button className="nav-button">🎨 Start Drawing Game</button></Link>
+
+          <button 
+            onClick={() => navigate('/niuniu')} 
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '30px', padding: '0 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', textShadow: '1px 1px 2px rgba(0,0,0,0.8)', boxSizing: 'border-box', background: 'linear-gradient(135deg, #1b4d2e 0%, #0d2617 100%)', color: '#a7f3d0', border: '1px solid #2e6930' }}
+          >
+            <span style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}>🃏</span> 撲克鬥牛
+          </button>
+
+          <button 
+            onClick={() => navigate('/loveletter')} 
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '30px', padding: '0 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', textShadow: '1px 1px 2px rgba(0,0,0,0.8)', boxSizing: 'border-box', background: 'linear-gradient(135deg, #7f1d1d 0%, #4a0404 100%)', color: '#fcd34d', border: '1px solid #b45309' }}
+          >
+            <span style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}>💌</span> 情書
+          </button>
+
+          <button 
+            onClick={() => navigate('/map')} 
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '30px', padding: '0 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', textShadow: '1px 1px 2px rgba(0,0,0,0.8)', boxSizing: 'border-box', background: 'linear-gradient(135deg, #0f766e 0%, #042f2e 100%)', color: '#99f6e4', border: '1px solid #115e59' }}
+          >
+            <span style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}>🌏</span> 地圖探索
+          </button>
+
+          <button 
+            onClick={() => navigate('/draw-guess')} 
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '30px', padding: '0 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', textShadow: '1px 1px 2px rgba(0,0,0,0.8)', boxSizing: 'border-box', background: 'linear-gradient(135deg, #6b21a8 0%, #3b0764 100%)', color: '#e9d5ff', border: '1px solid #581c87' }}
+          >
+            <span style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}>🎨</span> 你畫我猜
+          </button>
         </div>
   
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', flex: 1, overflow: 'hidden', minHeight: '200px' }}>
