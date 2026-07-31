@@ -266,15 +266,36 @@ export function Home({ username ,onLogout}) {
           <div style={{ display: 'flex', gap: '5px', padding: '0 15px', marginTop: '5px' }}>
             <button 
               onClick={() => { setActiveTab('world'); forceScrollRef.current = true; }}
-              style={{ flex: 1, padding: '10px', borderRadius: '12px 12px 0 0', border: 'none', background: activeTab === 'world' ? '#fff' : 'rgba(255,255,255,0.4)', fontWeight: 'bold', cursor: 'pointer', borderBottom: activeTab === 'world' ? '4px solid #4caf50' : '4px solid transparent', color: activeTab === 'world' ? '#333' : '#666', transition: 'all 0.2s' }}
+              style={{ 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', /* ✨ 使用 Flex 置中並統一間距 */
+                flex: 1, padding: '10px', borderRadius: '12px 12px 0 0', border: 'none', 
+                background: activeTab === 'world' ? '#fff' : 'rgba(255,255,255,0.4)', 
+                fontWeight: 'bold', cursor: 'pointer', 
+                borderBottom: activeTab === 'world' ? '4px solid #4caf50' : '4px solid transparent', 
+                color: activeTab === 'world' ? '#333' : '#666', transition: 'all 0.2s',
+                fontSize: '0.80rem' /* ✨ 設定文字大小 */
+              }}
             >
-              🌍 綜合大廳
+              {/* ✨ 將圖示獨立包起來，設定合適的大小 (例如 1.05rem 或 1.1rem) */}
+              <span style={{ fontSize: '0.80rem', display: 'flex', alignItems: 'center' }}>🌍</span> 
+              <span>綜合大廳</span>
             </button>
+
             <button 
               onClick={() => { setActiveTab('system'); setUnreadSystemCount(0); forceScrollRef.current = true; }}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', flex: 1, padding: '10px', borderRadius: '12px 12px 0 0', border: 'none', background: activeTab === 'system' ? '#fff' : 'rgba(255,255,255,0.4)', fontWeight: 'bold', cursor: 'pointer', borderBottom: activeTab === 'system' ? '4px solid #f44336' : '4px solid transparent', color: activeTab === 'system' ? '#333' : '#666', transition: 'all 0.2s' }}
+              style={{ 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', /* ✨ 使用 Flex 置中並統一間距 */
+                flex: 1, padding: '10px', borderRadius: '12px 12px 0 0', border: 'none', 
+                background: activeTab === 'system' ? '#fff' : 'rgba(255,255,255,0.4)', 
+                fontWeight: 'bold', cursor: 'pointer', 
+                borderBottom: activeTab === 'system' ? '4px solid #f44336' : '4px solid transparent', 
+                color: activeTab === 'system' ? '#333' : '#666', transition: 'all 0.2s',
+                fontSize: '0.80rem' /* ✨ 設定文字大小 */
+              }}
             >
-              📢 系統廣播
+              {/* ✨ 將圖示獨立包起來控制大小 */}
+              <span style={{ fontSize: '0.80rem', display: 'flex', alignItems: 'center' }}>📢</span> 
+              <span>系統廣播</span>
               {unreadSystemCount > 0 && activeTab !== 'system' && (
                 <span style={{ background: '#ef4444', color: 'white', padding: '1px 6px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
                   {unreadSystemCount}
