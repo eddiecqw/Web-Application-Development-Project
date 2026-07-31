@@ -234,7 +234,7 @@ export function handleBlackjackMessage(ws, type, data, wss, callbacks) {
         timeLimit: data.timeLimit || 15,
         baseBet: data.baseBet || 10,
         deckCount: data.deckCount || 4,
-        rotateDealer: data.rotateDealer || false // ✨ 新增輪流做莊設定
+        rotateDealer: data.rotateDealer || false 
       };
 
       blackjackRooms[newRoomId] = {
@@ -246,7 +246,12 @@ export function handleBlackjackMessage(ws, type, data, wss, callbacks) {
         dealerIndex: 0,
         dealerName: settings.rotateDealer ? username : 'System',
         dealer: { hand: [], score: 0 },
-        players: [{ name: username, chips: 1000, hand: [], score: 0, currentBet: 0, result: null, scoreChange: 0, status: 'waiting' }]
+        // ✨ 加入 nickname 欄位
+        players: [{ 
+          name: username, 
+          nickname: data.nickname || username.split('@')[0], 
+          chips: 1000, hand: [], score: 0, currentBet: 0, result: null, scoreChange: 0, status: 'waiting' 
+        }]
       };
 
       ws.send(JSON.stringify({
@@ -263,13 +268,19 @@ export function handleBlackjackMessage(ws, type, data, wss, callbacks) {
       if (!room) return ws.send(JSON.stringify({ type: 'BJ_ERROR', data: { message: '房間不存在' } }));
       if (room.status !== 'waiting') return ws.send(JSON.stringify({ type: 'BJ_ERROR', data: { message: '遊戲進行中，無法加入' } }));
       ws._bjRoomId = roomId;
+      
       if (!room.players.some(p => p.name === username)) {
-        room.players.push({ name: username, chips: 1000, hand: [], score: 0, currentBet: 0, result: null, scoreChange: 0, status: 'waiting' });
+        // ✨ 加入 nickname 欄位
+        room.players.push({ 
+          name: username, 
+          nickname: data.nickname || username.split('@')[0], 
+          chips: 1000, hand: [], score: 0, currentBet: 0, result: null, scoreChange: 0, status: 'waiting' 
+        });
       }
       broadcastToRoom(roomId, 'BJ_PLAYER_JOINED', wss);
       break;
     }
-
+    
     case 'BJ_START_GAME': {
       const room = blackjackRooms[roomId];
       if (!room || room.owner !== username) return;

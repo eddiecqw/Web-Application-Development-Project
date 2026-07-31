@@ -120,27 +120,30 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
 
   switch (type) {
     case 'NIUNIU_CREATE_ROOM': {
-      // 1. 先清理舊房間
       for (const id in niuniuRooms) {
         if (niuniuRooms[id].owner === username) delete niuniuRooms[id];
       }
 
-      // 2. 🌟 關鍵修復：必須先「宣告並產生」 newRoomId 與 timeLimit
-      const newRoomId = Math.random().toString(36).substring(2, 8);
+      const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase(); // 統一轉為大寫，方便手機輸入
       ws._niuniuRoomId = newRoomId;
       const settings = {
         timeLimit: data.timeLimit || 30,
-        rotateDealer: data.rotateDealer || false // ✨ 新增：輪流做莊設定
+        rotateDealer: data.rotateDealer || false 
       };
 
       niuniuRooms[newRoomId] = {
         id: newRoomId,
         owner: username,
-        dealer: username, // 初始莊家
-        dealerIndex: 0,   // ✨ 新增：紀錄目前輪到第幾位莊家
+        dealer: username, 
+        dealerIndex: 0,   
         status: 'waiting', 
         settings: settings,
-        players: [{ name: username, chips: 1000, hand: [], result: null, scoreChange: 0, isReady: false }]
+        // ✨ 加入 nickname 欄位
+        players: [{ 
+          name: username, 
+          nickname: data.nickname || username.split('@')[0], 
+          chips: 1000, hand: [], result: null, scoreChange: 0, isReady: false 
+        }]
       };
 
       ws.send(JSON.stringify({
@@ -148,7 +151,6 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
         data: { roomId: newRoomId, room: niuniuRooms[newRoomId] }
       }));
 
-      // 5. 呼叫回調通知聊天室
       if (callbacks && callbacks.onRoomCreated) {
         callbacks.onRoomCreated(newRoomId);
       }
@@ -158,25 +160,24 @@ export function handleNiuNiuMessage(ws, type, data, wss, callbacks) {
     case 'NIUNIU_JOIN_ROOM': {
       const room = niuniuRooms[roomId];
       
-      // 1. 先確認房間到底存不存在
       if (!room) {
         return ws.send(JSON.stringify({ type: 'NIUNIU_ERROR', data: { message: '房間不存在' } }));
       }
-      
-      // 2. 確認存在後，再把房間 ID 綁定到連線上
       ws._niuniuRoomId = roomId;
 
-      // 3. 確認房間狀態是否允許加入
       if (room.status !== 'waiting') {
         return ws.send(JSON.stringify({ type: 'NIUNIU_ERROR', data: { message: '遊戲已經開始，無法加入' } }));
       }
 
-      // 4. 檢查玩家是否已經在房間內，不在的話就把他加進去
       if (!room.players.some(p => p.name === username)) {
-        room.players.push({ name: username, isReady: false, hand: [], result: null, chips: 1000, scoreChange: 0 });
+        // ✨ 加入 nickname 欄位
+        room.players.push({ 
+          name: username, 
+          nickname: data.nickname || username.split('@')[0], 
+          isReady: false, hand: [], result: null, chips: 1000, scoreChange: 0 
+        });
       }
 
-      // 5. 廣播給房間所有人：有新玩家加入
       broadcastToRoom(roomId, {
         type: 'NIUNIU_PLAYER_JOINED',
         data: { room }
