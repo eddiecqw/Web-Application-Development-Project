@@ -1,22 +1,17 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'; // ✨ 記得引入 useRef
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useNiuNiuSocket from '../hooks/useNiuNiuSocket';
 import NiuNiuLobby from '../components/Game/NiuNiuLobby';
 
-// 前端輔助計算，用來即時驗證玩家選的牌與特殊牌型
 function evaluateHandLocal(hand) {
   if (!hand || hand.length !== 5) return { type: '無牛', weight: 0 };
-  
   const isFiveSmall = hand.every(c => c.value < 5) && hand.reduce((sum, c) => sum + c.value, 0) <= 10;
   if (isFiveSmall) return { type: '五小牛', weight: 1000 };
-
   const rankCounts = {};
   hand.forEach(c => rankCounts[c.rank] = (rankCounts[c.rank] || 0) + 1);
   if (Object.values(rankCounts).includes(4)) return { type: '四炸', weight: 900 };
-
   const isFiveFlower = hand.every(c => ['J', 'Q', 'K'].includes(c.rank));
   if (isFiveFlower) return { type: '五花牛', weight: 800 };
-
   return null;
 }
 
@@ -33,45 +28,32 @@ function compareHands(handA, resultA, handB, resultB) {
   if (!resultA || !resultB) return false;
   if (resultA.weight > resultB.weight) return true;
   if (resultA.weight < resultB.weight) return false;
-  
   const highA = getHighestCard(handA);
   const highB = getHighestCard(handB);
   if (!highA || !highB) return false;
-  
   if (highA.numValue > highB.numValue) return true;
   if (highA.numValue < highB.numValue) return false;
-  
   return highA.suitValue > highB.suitValue;
 }
 
 export default function NiuNiuPage({ user }) {
   const navigate = useNavigate();
   const username = user.email;
-  
-  const baseWsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:53840/ws';
-  const wsUrl = `${baseWsUrl}?username=${encodeURIComponent(username)}`;
+  const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:53840/ws'}?username=${encodeURIComponent(username)}`;
 
-  // ✨ BGM 音樂狀態與實體設定
   const [isBgmPlaying, setIsBgmPlaying] = useState(false);
   const bgmRef = useRef(new Audio('/audio/The_High_Stakes_Shuffle.mp3'));
 
   useEffect(() => {
     const audio = bgmRef.current;
-    audio.loop = true;
-    audio.volume = 0.4; // 音量 40%
-    return () => {
-      audio.pause();
-      audio.currentTime = 0;
-    };
+    audio.loop = true; audio.volume = 0.4;
+    return () => { audio.pause(); audio.currentTime = 0; };
   }, []);
 
   const toggleBgm = () => {
     const audio = bgmRef.current;
-    if (isBgmPlaying) {
-      audio.pause();
-    } else {
-      audio.play().catch(e => console.error("音樂播放失敗:", e));
-    }
+    if (isBgmPlaying) audio.pause();
+    else audio.play().catch(e => console.error(e));
     setIsBgmPlaying(!isBgmPlaying);
   };
 
@@ -81,20 +63,11 @@ export default function NiuNiuPage({ user }) {
   } = useNiuNiuSocket(wsUrl, {
     NIUNIU_SHOW_EMOJI: (data) => {
       setActiveEmojis(prev => ({ ...prev, [data.username]: data.emoji }));
-      setTimeout(() => {
-        setActiveEmojis(prev => {
-          const newState = { ...prev };
-          delete newState[data.username];
-          return newState;
-        });
-      }, 3000);
+      setTimeout(() => setActiveEmojis(prev => { const n = { ...prev }; delete n[data.username]; return n; }), 3000);
     }
   });
 
-  const handleSendEmoji = (emoji) => {
-    sendEmoji(emoji);
-    setShowEmojiPicker(false);
-  };
+  const handleSendEmoji = (emoji) => { sendEmoji(emoji); setShowEmojiPicker(false); };
 
   const [selectedIndices, setSelectedIndices] = useState([]);
   const [manualResult, setManualResult] = useState(null);
@@ -115,77 +88,37 @@ export default function NiuNiuPage({ user }) {
   const isShowdown = roomData?.status === 'showdown';
   const isRotateDealer = roomData?.settings?.rotateDealer;
   const notEnoughPlayers = isRotateDealer && roomData?.players?.length < 2;
+
   useEffect(() => {
     if (!roomData) return;
-
     if (roomData.status === 'playing' && lastStatus !== 'playing') {
-      setLastStatus('playing');
-      setSelectedIndices([]);
-      setIsNoNiu(false);
-      setManualResult(null);
+      setLastStatus('playing'); setSelectedIndices([]); setIsNoNiu(false); setManualResult(null);
       setTimeLeft(roomData.settings?.timeLimit || 30);
-      
       if (me?.hand) {
         const special = evaluateHandLocal(me.hand);
         if (special) {
-          setManualResult(special);
-          setMsg(`🌟 運氣爆棚！自動辨識為特殊牌型：【${special.type}】`);
-          setMsgColor('#ffd700');
+          setManualResult(special); setMsg(`🌟 運氣爆棚！自動辨識為特殊牌型：【${special.type}】`); setMsgColor('#ffd700');
         } else {
-          setMsg('👉 請挑選 3 張點數總和為 10 的倍數的牌');
-          setMsgColor('#fff');
+          setMsg('👉 挑出 3 張點數總和為 10 的倍數'); setMsgColor('#fff');
         }
       }
-    } 
-    else if (roomData.status === 'showdown' && lastStatus !== 'showdown') {
-      setLastStatus('showdown');
-      setTimeLeft(null);
-      
+    } else if (roomData.status === 'showdown' && lastStatus !== 'showdown') {
+      setLastStatus('showdown'); setTimeLeft(null);
       const dealer = roomData.players.find(p => p.name === roomData.dealer);
-
       if (me.name === roomData.dealer) {
-        let winCount = 0;
-        let loseCount = 0;
-        roomData.players.forEach(p => {
-          if (p.name !== me.name && p.result) {
-            if (compareHands(me.hand, me.result, p.hand, p.result)) winCount++;
-            else loseCount++;
-          }
-        });
-
-        if (winCount === 0 && loseCount === 0) {
-          setMsg('👀 攤牌結果揭曉！');
-        } else if (winCount >= loseCount) {
-          setMsg(`👑 庄家通殺！贏了 ${winCount} 家，輸了 ${loseCount} 家！`);
-          setMsgColor('#ffd700');
-          new Audio('/success.mp3').play().catch(() => {});
-        } else {
-          setMsg(`💸 慘遭圍剿！贏了 ${winCount} 家，輸了 ${loseCount} 家！`);
-          setMsgColor('#ff1744');
-        }
-      } 
-      else {
-        if (dealer && dealer.result && me.result) {
-          const isWin = compareHands(me.hand, me.result, dealer.hand, dealer.result);
-          if (isWin) {
-            setMsg('🎉 恭喜！你贏了庄家！');
-            setMsgColor('#00e676');
-            new Audio('/success.mp3').play().catch(() => {});
-          } else {
-            setMsg('💀 遺憾！庄家獲勝！');
-            setMsgColor('#ff1744');
-          }
-        } else {
-          setMsg('👀 攤牌結果揭曉！');
-          setMsgColor('#fff');
+        let winCount = 0; let loseCount = 0;
+        roomData.players.forEach(p => { if (p.name !== me.name && p.result) { compareHands(me.hand, me.result, p.hand, p.result) ? winCount++ : loseCount++; }});
+        if (winCount === 0 && loseCount === 0) setMsg('👀 攤牌結果揭曉！');
+        else if (winCount >= loseCount) { setMsg(`👑 庄家通殺！贏 ${winCount} 輸 ${loseCount}`); setMsgColor('#ffd700'); }
+        else { setMsg(`💸 慘遭圍剿！贏 ${winCount} 輸 ${loseCount}`); setMsgColor('#ff1744'); }
+      } else {
+        if (dealer?.result && me.result) {
+          if (compareHands(me.hand, me.result, dealer.hand, dealer.result)) { setMsg('🎉 你贏了庄家！'); setMsgColor('#00e676'); }
+          else { setMsg('💀 庄家獲勝！'); setMsgColor('#ff1744'); }
         }
       }
-    } 
-    else if (roomData.status === 'waiting' && lastStatus !== 'waiting') {
-      setLastStatus('waiting');
-      setMsg(isOwner ? '等待其他玩家加入，點擊「開始遊戲」' : '等待房主開始遊戲...');
-      setMsgColor('#fff');
-      setTimeLeft(null);
+    } else if (roomData.status === 'waiting' && lastStatus !== 'waiting') {
+      setLastStatus('waiting'); setMsg(isOwner ? '等待玩家加入，點擊「開始遊戲」' : '等待房主開始...'); setMsgColor('#fff'); setTimeLeft(null);
     }
   }, [roomData?.status, me?.hand, isOwner, me, roomData?.dealer, roomData?.players, roomData?.timeLimit, lastStatus]);
 
@@ -195,37 +128,26 @@ export default function NiuNiuPage({ user }) {
     return () => clearInterval(timer);
   }, [timeLeft, roomData?.status]);
 
-  // ✨ 鬥牛修復 1：偵測時間到，單純改變 UI 狀態 (避免計時器被 React 謀殺)
   useEffect(() => {
     if (timeLeft === 0 && roomData?.status === 'playing' && !me?.isReady && !isNoNiu) {
-      setMsg('⏰ 時間到！系統將強制以「無牛」交卷...');
-      setMsgColor('#ff1744');
-      setIsNoNiu(true); 
+      setMsg('⏰ 超時！強制以「無牛」交卷...'); setMsgColor('#ff1744'); setIsNoNiu(true); 
     }
   }, [timeLeft, roomData?.status, me?.isReady, isNoNiu]);
 
-  // ✨ 鬥牛修復 2：獨立的計時器，當系統自動標記 isNoNiu 時啟動
   useEffect(() => {
-    // 確保是「時間到」且「還沒交卷」才自動送出 (防止玩家手動按無牛時也被觸發)
     if (isNoNiu && timeLeft === 0 && roomData?.status === 'playing' && !me?.isReady) {
-      const timer = setTimeout(() => {
-        submitHand({ manualResult: { type: '無牛', weight: 0 } });
-      }, 1500);
+      const timer = setTimeout(() => submitHand({ manualResult: { type: '無牛', weight: 0 } }), 1500);
       return () => clearTimeout(timer);
     }
   }, [isNoNiu, timeLeft, roomData?.status, me?.isReady, submitHand]);
 
   const toggleCardSelection = (index) => {
     if (!isPlaying || me?.isReady || manualResult?.weight >= 800 || isNoNiu) return;
-
     setSelectedIndices(prev => {
-      let newSelection = [...prev];
-      if (newSelection.includes(index)) {
-        newSelection = newSelection.filter(i => i !== index);
-      } else if (newSelection.length < 3) {
-        newSelection.push(index);
-      }
-      return newSelection;
+      let newSel = [...prev];
+      if (newSel.includes(index)) newSel = newSel.filter(i => i !== index);
+      else if (newSel.length < 3) newSel.push(index);
+      return newSel;
     });
   };
 
@@ -234,210 +156,92 @@ export default function NiuNiuPage({ user }) {
     if (selectedIndices.length === 3 && me?.hand) {
       const sum = selectedIndices.reduce((acc, idx) => acc + me.hand[idx].value, 0);
       if (sum % 10 === 0) {
-        const remainingIndices = [0, 1, 2, 3, 4].filter(idx => !selectedIndices.includes(idx));
-        const niuSum = me.hand[remainingIndices[0]].value + me.hand[remainingIndices[1]].value;
+        const rem = [0, 1, 2, 3, 4].filter(idx => !selectedIndices.includes(idx));
+        const niuSum = me.hand[rem[0]].value + me.hand[rem[1]].value;
         const finalNiu = niuSum % 10 === 0 ? 10 : niuSum % 10;
-        
-        setManualResult({
-          type: finalNiu === 10 ? '鬥牛 (牛牛)' : `牛${finalNiu}`,
-          weight: finalNiu * 10
-        });
-        setMsg(`✅ 湊成 10 的倍數了！牌型：【${finalNiu === 10 ? '鬥牛' : '牛' + finalNiu}】`);
-        setMsgColor('#00e676');
-        setIsNoNiu(false);
+        setManualResult({ type: finalNiu === 10 ? '鬥牛 (牛牛)' : `牛${finalNiu}`, weight: finalNiu * 10 });
+        setMsg(`✅ 湊滿了！牌型：【${finalNiu === 10 ? '鬥牛' : '牛' + finalNiu}】`); setMsgColor('#00e676'); setIsNoNiu(false);
       } else {
-        setMsg(`❌ 這三張牌加總 (${sum}) 不是 10 的倍數喔！`);
-        setMsgColor('#ff1744');
-        setManualResult(null);
+        setMsg(`❌ 加總不是 10 的倍數喔！`); setMsgColor('#ff1744'); setManualResult(null);
       }
     } else if (selectedIndices.length > 0 && selectedIndices.length < 3) {
-      setMsg(`👉 已選 ${selectedIndices.length}/3 張牌`);
-      setMsgColor('#fff');
-      setManualResult(null);
+      setMsg(`👉 已選 ${selectedIndices.length}/3 張牌`); setMsgColor('#fff'); setManualResult(null);
     }
   }, [selectedIndices, me?.hand, roomData?.status]);
 
   const handleDeclareNoNiu = () => {
-    setIsNoNiu(true);
-    setManualResult({ type: '無牛', weight: 0 });
-    setSelectedIndices([]);
-    setMsg('🤷‍♂️ 宣告無牛！點擊「確認手牌」等待結算。');
-    setMsgColor('#9e9e9e');
+    setIsNoNiu(true); setManualResult({ type: '無牛', weight: 0 }); setSelectedIndices([]);
+    setMsg('🤷‍♂️ 宣告無牛！等待結算。'); setMsgColor('#9e9e9e');
   };
 
   const handleLeaveGame = () => {
-    const isConfirmed = window.confirm("⚠️ 確定要離開賭局嗎？");
-    if (isConfirmed) {
-      leaveRoom();
-      navigate('/');
-    }
+    if (window.confirm("⚠️ 確定要離開嗎？")) { leaveRoom(); navigate('/'); }
   };
 
+  // ✨ 調整卡牌尺寸適應手機
   const renderCard = (card, idx, isSelectable = false, isSelected = false, isHidden = false) => {
-    if (isHidden || !card) {
-      return (
-        <div key={idx} style={{
-          width: '60px', height: '90px', margin: '0 4px', borderRadius: '6px',
-          background: 'repeating-linear-gradient(45deg, #0d47a1, #0d47a1 10px, #1976d2 10px, #1976d2 20px)',
-          border: '2px solid white', boxShadow: '2px 2px 5px rgba(0,0,0,0.3)'
-        }} />
-      );
-    }
-
+    const cardStyle = {
+      width: '45px', height: '65px', margin: '0 -5px', borderRadius: '4px', zIndex: idx, position: 'relative',
+      boxShadow: isSelected ? '0 0 10px rgba(255,215,0,0.8)' : '1px 1px 4px rgba(0,0,0,0.4)',
+      transform: isSelected ? 'translateY(-10px)' : 'translateY(0)',
+      border: isSelected ? '2px solid #ffd700' : 'none', transition: 'all 0.2s ease', userSelect: 'none'
+    };
+    if (isHidden || !card) return <div key={idx} style={{ ...cardStyle, background: 'repeating-linear-gradient(45deg, #0d47a1, #0d47a1 8px, #1976d2 8px, #1976d2 16px)', border: '1px solid white' }} />;
     return (
-      <div 
-        key={idx} 
-        onClick={() => isSelectable && toggleCardSelection(idx)}
-        style={{
-          width: '60px', height: '90px', margin: '0 4px', borderRadius: '6px',
-          backgroundColor: 'white', color: card.color === 'red' ? '#d32f2f' : '#212121',
-          display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
-          fontWeight: 'bold', fontSize: '1.2rem', cursor: isSelectable ? 'pointer' : 'default',
-          boxShadow: isSelected ? '0 0 15px rgba(255,215,0,0.8)' : '2px 2px 5px rgba(0,0,0,0.3)',
-          transform: isSelected ? 'translateY(-15px)' : 'translateY(0)',
-          border: isSelected ? '3px solid #ffd700' : 'none',
-          transition: 'all 0.2s ease', userSelect: 'none'
-        }}
-      >
-        <div>{card.rank}</div>
-        <div style={{ fontSize: '1.5rem' }}>{card.suit}</div>
+      <div key={idx} onClick={() => isSelectable && toggleCardSelection(idx)} style={{ ...cardStyle, backgroundColor: 'white', color: card.color === 'red' ? '#d32f2f' : '#212121', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '1rem', cursor: isSelectable ? 'pointer' : 'default', border: isSelected ? '2px solid #ffd700' : '1px solid #ccc' }}>
+        <div style={{ lineHeight: '1' }}>{card.rank}</div>
+        <div style={{ fontSize: '1.2rem', lineHeight: '1' }}>{card.suit}</div>
       </div>
     );
   };
 
   if (!roomId) {
     return (
-      // ✨ 外層改成深色背景 #121212，並使用 flex 置中，徹底消除白邊
       <div style={{ minHeight: '100vh', backgroundColor: '#121212', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
-        <NiuNiuLobby onCreateRoom={createRoom} onJoinRoom={joinRoom} onBack={() => navigate('/')} />
+        <NiuNiuLobby onCreateRoom={createRoom} onJoinRoom={joinRoom} onBack={() => navigate('/')} username={user.email} />
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#1a4f2c', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px', position: 'relative' }}>
+    // ✨ 滿版深色背景，內部限制 maxWidth 450px 居中
+    <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '5px' }}>
       
       {/* 頂部狀態列 */}
-      <header style={{ 
-        width: '100%', maxWidth: '900px', display: 'flex', justifyContent: 'space-between', 
-        alignItems: 'center', padding: '10px 5px', backgroundColor: 'rgba(0,0,0,0.3)', 
-        borderRadius: '8px', marginBottom: '15px', gap: '5px' 
-      }}>
-        
-        <button onClick={handleLeaveGame} style={{ 
-          padding: '6px 10px', background: '#dc3545', color: 'white', 
-          borderRadius: '6px', border: 'none', fontWeight: 'bold', 
-          cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.9rem', flexShrink: 0 
-        }}>
-          ← 離開
-        </button>
-        
-        {/* ✨ 中間：房間與房主資訊垂直排列，明確顯示名字，且防止換行斷字 */}
-        <div style={{ 
-          display: 'flex', flexDirection: 'column', alignItems: 'center', 
-          flex: 1, minWidth: 0, margin: '0 5px' 
-        }}>
-          <div style={{ fontWeight: 'bold', color: '#ffd700', fontSize: '1rem', whiteSpace: 'nowrap' }}>
-            房間: {roomId}
-          </div>
-          <div style={{ 
-            fontSize: '0.8rem', color: '#ffea00', whiteSpace: 'nowrap', 
-            overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' 
-          }}>
-            (房主: {isOwner ? '你' : roomData?.owner?.split('@')[0]})
-          </div>
+      <header style={{ width: '100%', maxWidth: '450px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', marginBottom: '8px', boxSizing: 'border-box' }}>
+        <button onClick={handleLeaveGame} style={{ padding: '6px 10px', background: '#dc3545', color: 'white', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>← 離開</button>
+        <div style={{ textAlign: 'center', flex: 1 }}>
+          <div style={{ fontWeight: 'bold', color: '#ffd700', fontSize: '0.9rem' }}>房間: {roomId}</div>
         </div>
-        
-        {/* 右側：BGM與規則按鈕區 */}
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
-          {timeLeft !== null && (
-            <div style={{ fontSize: '1rem', fontWeight: 'bold', color: timeLeft <= 10 ? '#ff1744' : '#00e676' }}>
-              ⏱️{timeLeft}s
-            </div>
-          )}
-
-          <button 
-            onClick={toggleBgm} 
-            style={{ 
-              padding: '6px 8px', background: isBgmPlaying ? '#4caf50' : '#666',
-              color: 'white', borderRadius: '20px', border: 'none', 
-              fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.85rem',
-              boxShadow: isBgmPlaying ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none',
-              transition: 'all 0.2s'
-            }}
-          >
-            {isBgmPlaying ? '🔊' : '🔇'} BGM
-          </button>
-
-          <button 
-            onClick={() => setShowRules(true)}
-            style={{ 
-              padding: '6px 8px', background: '#2196F3', color: 'white', 
-              borderRadius: '20px', border: 'none', fontWeight: 'bold', 
-              cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-              whiteSpace: 'nowrap', fontSize: '0.85rem'
-            }}
-          >
-            ❓ 規則
-          </button>
+        <div style={{ display: 'flex', gap: '5px' }}>
+          <button onClick={toggleBgm} style={{ padding: '6px 8px', background: isBgmPlaying ? '#4caf50' : '#666', color: 'white', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>{isBgmPlaying ? '🔊' : '🔇'}</button>
+          <button onClick={() => setShowRules(true)} style={{ padding: '6px 8px', background: '#2196F3', color: 'white', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>❓</button>
         </div>
       </header>
 
-      {/* 🎰 賭桌主視覺 */}
-      <div style={{ 
-        width: '100%', maxWidth: '900px', flex: 1, 
-        background: 'radial-gradient(circle, #226b3a 0%, #11361c 100%)',
-        border: '10px solid #4a2e15', borderRadius: '20px', padding: '20px',
-        boxShadow: 'inset 0 0 50px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.8)',
-        display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
-      }}>
+      {/* 🎰 主牌桌 (MaxWidth: 450px) */}
+      <div style={{ width: '100%', maxWidth: '450px', flex: 1, background: 'radial-gradient(circle, #226b3a 0%, #11361c 100%)', border: '6px solid #4a2e15', borderRadius: '15px', padding: '10px', boxSizing: 'border-box', boxShadow: 'inset 0 0 30px rgba(0,0,0,0.8)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         
-        {/* 對手區域 */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '20px' }}>
+        {/* 對手區域 (網格排列，適應窄螢幕) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           {opponents.map((opp) => (
-            <div key={opp.name} style={{ textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '12px', position: 'relative' }}>
-              {activeEmojis[opp.name] && (
-                <div style={{
-                  position: 'absolute', top: '-45px', left: '50%', transform: 'translateX(-50%)',
-                  background: 'white', padding: '4px 12px', borderRadius: '20px',
-                  fontSize: '2rem', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', zIndex: 10,
-                  animation: 'fadeUp 0.2s ease-out'
-                }}>
-                  {activeEmojis[opp.name]}
-                  <div style={{ position: 'absolute', bottom: '-8px', left: '50%', transform: 'translateX(-50%)', borderTop: '8px solid white', borderLeft: '8px solid transparent', borderRight: '8px solid transparent' }} />
-                </div>
-              )}
-
-              <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', color: roomData.dealer === opp.name ? '#ffd700' : '#fff' }}>
-                {roomData.dealer === opp.name && '👑 '} {opp.name.split('@')[0]} {opp.isReady && '✅'}
-                <div style={{ color: '#ffd700', fontSize: '0.9rem', marginTop: '4px' }}>💰 {opp.chips ?? 1000}</div>
-              </h3>
+            <div key={opp.name} style={{ textAlign: 'center', background: 'rgba(0,0,0,0.3)', padding: '8px', borderRadius: '10px', position: 'relative' }}>
+              {activeEmojis[opp.name] && <div style={{ position: 'absolute', top: '-25px', left: '50%', transform: 'translateX(-50%)', fontSize: '1.5rem', zIndex: 10 }}>{activeEmojis[opp.name]}</div>}
               
-              <div style={{ display: 'flex', justifyContent: 'center', height: '90px' }}>
-                {[0,1,2,3,4].map(idx => 
-                  renderCard(
-                    opp.hand ? opp.hand[idx] : null, 
-                    idx, 
-                    false, 
-                    false, 
-                    !isShowdown && opp.hand && opp.hand.length > 0 
-                  )
-                )}
+              {/* ✨ 顯示對手暱稱 */}
+              <div style={{ margin: '0 0 5px 0', fontSize: '0.85rem', color: roomData.dealer === opp.name ? '#ffd700' : '#fff', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {roomData.dealer === opp.name && '👑 '} {opp.nickname || opp.name.split('@')[0]} {opp.isReady && '✅'}
+                <div style={{ color: '#fcd34d', fontSize: '0.75rem' }}>💰 {opp.chips ?? 1000}</div>
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'center', height: '65px' }}>
+                {[0,1,2,3,4].map(idx => renderCard(opp.hand ? opp.hand[idx] : null, idx, false, false, !isShowdown && opp.hand && opp.hand.length > 0))}
               </div>
               
               {isShowdown && opp.result && (
-                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ background: 'rgba(0,0,0,0.7)', color: '#00e676', padding: '4px 12px', borderRadius: '15px', border: '1px solid #00e676', fontSize: '0.9rem' }}>
-                    {opp.result.type}
-                  </div>
-                  {opp.scoreChange !== 0 && (
-                    <div style={{
-                      color: opp.scoreChange > 0 ? '#00e676' : '#ff1744', 
-                      fontWeight: 'bold', fontSize: '1.2rem', marginTop: '5px'
-                    }}>
-                      {opp.scoreChange > 0 ? `+${opp.scoreChange}` : opp.scoreChange}
-                    </div>
-                  )}
+                <div style={{ marginTop: '5px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ background: 'rgba(0,0,0,0.7)', color: '#00e676', padding: '2px 8px', borderRadius: '10px', border: '1px solid #00e676', fontSize: '0.75rem' }}>{opp.result.type}</div>
+                  {opp.scoreChange !== 0 && <div style={{ color: opp.scoreChange > 0 ? '#00e676' : '#ff1744', fontWeight: 'bold', fontSize: '0.9rem' }}>{opp.scoreChange > 0 ? `+${opp.scoreChange}` : opp.scoreChange}</div>}
                 </div>
               )}
             </div>
@@ -445,56 +249,23 @@ export default function NiuNiuPage({ user }) {
         </div>
 
         {/* 遊戲訊息與操作區 */}
-        <div style={{ textAlign: 'center', margin: '20px 0' }}>
-          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: msgColor, minHeight: '35px', textShadow: '1px 1px 2px black', marginBottom: '15px' }}>
-            {msg}
+        <div style={{ textAlign: 'center', margin: '15px 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: msgColor, textShadow: '1px 1px 2px black' }}>{msg}</div>
+            {timeLeft !== null && <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: timeLeft <= 10 ? '#ff1744' : '#00e676' }}>⏱️ {timeLeft}s</div>}
           </div>
           
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
             {roomData.status === 'waiting' && isOwner && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <button 
-                  onClick={() => startGame()} 
-                  disabled={notEnoughPlayers}
-                  style={{ 
-                    padding: '12px 24px', 
-                    background: notEnoughPlayers ? '#9e9e9e' : 'linear-gradient(to bottom, #fbc02d, #f57f17)', 
-                    color: notEnoughPlayers ? '#666' : '#3e2723', 
-                    border: 'none', borderRadius: '25px', fontSize: '1.1rem', 
-                    fontWeight: 'bold', cursor: notEnoughPlayers ? 'not-allowed' : 'pointer', 
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)' 
-                  }}
-                >
-                  🎮 開始遊戲
-                </button>
-                {/* ✨ 人數不足時顯示警告 */}
-                {notEnoughPlayers && (
-                  <div style={{ color: '#ff1744', marginTop: '8px', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                    ⚠️ 輪流做莊模式至少需要 2 人
-                  </div>
-                )}
+                <button onClick={() => startGame()} disabled={notEnoughPlayers} style={{ padding: '8px 20px', background: notEnoughPlayers ? '#9e9e9e' : 'linear-gradient(to bottom, #fbc02d, #f57f17)', color: '#3e2723', border: 'none', borderRadius: '20px', fontSize: '0.95rem', fontWeight: 'bold', cursor: notEnoughPlayers ? 'not-allowed' : 'pointer' }}>🎮 開始遊戲</button>
+                {notEnoughPlayers && <div style={{ color: '#ff1744', marginTop: '5px', fontSize: '0.8rem', fontWeight: 'bold' }}>⚠️ 需至少 2 人</div>}
               </div>
             )}
             {isPlaying && !me?.isReady && (
               <>
-                <button 
-                  onClick={handleDeclareNoNiu} 
-                  style={{ padding: '10px 20px', background: 'linear-gradient(to bottom, #9e9e9e, #616161)', color: 'white', border: 'none', borderRadius: '25px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer' }}
-                >
-                  🤷‍♂️ 宣告無牛
-                </button>
-                <button 
-                  onClick={() => submitHand({ manualResult: manualResult || { type: '無牛', weight: 0 } })}
-                  disabled={!manualResult && !isNoNiu}
-                  style={{ 
-                    padding: '10px 20px', border: 'none', borderRadius: '25px', fontSize: '1rem', fontWeight: 'bold',
-                    background: (manualResult || isNoNiu) ? 'linear-gradient(to bottom, #fbc02d, #f57f17)' : '#9e9e9e',
-                    color: (manualResult || isNoNiu) ? '#3e2723' : '#616161',
-                    cursor: (manualResult || isNoNiu) ? 'pointer' : 'not-allowed'
-                  }}
-                >
-                  ✅ 確認手牌
-                </button>
+                <button onClick={handleDeclareNoNiu} style={{ padding: '8px 16px', background: 'linear-gradient(to bottom, #9e9e9e, #616161)', color: 'white', border: 'none', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold' }}>🤷‍♂️ 無牛</button>
+                <button onClick={() => submitHand({ manualResult: manualResult || { type: '無牛', weight: 0 } })} disabled={!manualResult && !isNoNiu} style={{ padding: '8px 16px', border: 'none', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold', background: (manualResult || isNoNiu) ? 'linear-gradient(to bottom, #fbc02d, #f57f17)' : '#9e9e9e', color: (manualResult || isNoNiu) ? '#3e2723' : '#616161' }}>✅ 確認</button>
               </>
             )}
           </div>
@@ -502,129 +273,53 @@ export default function NiuNiuPage({ user }) {
 
         {/* 玩家自己的區域 */}
         {me && (
-          <div style={{ textAlign: 'center', background: 'rgba(0,0,0,0.4)', padding: '15px', borderRadius: '15px', border: roomData.dealer === me.name ? '2px solid #ffd700' : 'none', position: 'relative' }}>
-            {activeEmojis[me.name] && (
-              <div style={{
-                position: 'absolute', top: '-45px', left: '50%', transform: 'translateX(-50%)',
-                background: 'white', padding: '4px 12px', borderRadius: '20px',
-                fontSize: '2rem', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', zIndex: 10,
-                animation: 'fadeUp 0.2s ease-out'
-              }}>
-                {activeEmojis[me.name]}
-                <div style={{ position: 'absolute', bottom: '-8px', left: '50%', transform: 'translateX(-50%)', borderTop: '8px solid white', borderLeft: '8px solid transparent', borderRight: '8px solid transparent' }} />
-              </div>
-            )}
+          <div style={{ textAlign: 'center', background: 'rgba(0,0,0,0.5)', padding: '12px', borderRadius: '12px', border: roomData.dealer === me.name ? '2px solid #ffd700' : 'none', position: 'relative' }}>
+            {activeEmojis[me.name] && <div style={{ position: 'absolute', top: '-30px', left: '50%', transform: 'translateX(-50%)', fontSize: '1.8rem', zIndex: 10 }}>{activeEmojis[me.name]}</div>}
 
-            <h2 style={{ margin: '0 0 15px 0', fontSize: '1.2rem', color: roomData.dealer === me.name ? '#ffd700' : '#fff' }}>
-              {roomData.dealer === me.name && '👑 '} 你的手牌 {me.isReady && '(已確認 ✅)'}
-              <span style={{ color: '#ffd700', marginLeft: '15px' }}>💰 {me.chips ?? 1000}</span>
-            </h2>
-            <div style={{ display: 'flex', justifyContent: 'center', height: '110px', alignItems: 'flex-end' }}>
-              {[0,1,2,3,4].map(idx => 
-                renderCard(
-                  me.hand ? me.hand[idx] : null, 
-                  idx, 
-                  isPlaying && !me.isReady, 
-                  selectedIndices.includes(idx), 
-                  false
-                )
-              )}
+            {/* ✨ 顯示自己暱稱 */}
+            <div style={{ margin: '0 0 8px 0', fontSize: '1rem', fontWeight: 'bold', color: roomData.dealer === me.name ? '#ffd700' : 'white' }}>
+              {roomData.dealer === me.name && '👑 '} {me.nickname || me.name.split('@')[0]} {me.isReady && '✅'}
+              <span style={{ color: '#ffd700', marginLeft: '10px' }}>💰 {me.chips ?? 1000}</span>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', height: '80px', alignItems: 'flex-end' }}>
+              {[0,1,2,3,4].map(idx => renderCard(me.hand ? me.hand[idx] : null, idx, isPlaying && !me.isReady, selectedIndices.includes(idx), false))}
             </div>
             
             {isShowdown && me.result && (
-              <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ background: 'rgba(0,0,0,0.8)', color: '#00e676', padding: '6px 16px', borderRadius: '20px', border: '2px solid #00e676', fontSize: '1.2rem', fontWeight: 'bold' }}>
-                  {me.result.type}
-                </div>
-                {me.scoreChange !== 0 && (
-                  <div style={{
-                    color: me.scoreChange > 0 ? '#00e676' : '#ff1744', 
-                    fontWeight: 'bold', fontSize: '1.5rem', marginTop: '10px'
-                  }}>
-                    {me.scoreChange > 0 ? `+${me.scoreChange}` : me.scoreChange}
-                  </div>
-                )}
+              <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ background: 'rgba(0,0,0,0.8)', color: '#00e676', padding: '4px 12px', borderRadius: '15px', border: '1px solid #00e676', fontSize: '0.9rem', fontWeight: 'bold' }}>{me.result.type}</div>
+                {me.scoreChange !== 0 && <div style={{ color: me.scoreChange > 0 ? '#00e676' : '#ff1744', fontWeight: 'bold', fontSize: '1.2rem', marginTop: '5px' }}>{me.scoreChange > 0 ? `+${me.scoreChange}` : me.scoreChange}</div>}
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* ✨ 右下角懸浮表情按鈕 (Floating Action Button) */}
-      <div style={{ position: 'fixed', bottom: '25px', right: '25px', zIndex: 100 }}>
+      <div style={{ position: 'fixed', bottom: '15px', right: '15px', zIndex: 50 }}>
         {showEmojiPicker && (
-          <div style={{
-            position: 'absolute', bottom: '100%', right: 0, marginBottom: '15px',
-            background: 'white', padding: '10px', borderRadius: '12px',
-            display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
-          }}>
-            {EMOJI_LIST.map(e => (
-              <button 
-                key={e} onClick={() => handleSendEmoji(e)}
-                style={{ fontSize: '1.8rem', background: 'transparent', border: 'none', cursor: 'pointer', padding: '5px', borderRadius: '8px', transition: 'background 0.2s' }}
-                onMouseOver={(e) => e.target.style.background = '#f0f0f0'}
-                onMouseOut={(e) => e.target.style.background = 'transparent'}
-              >
-                {e}
-              </button>
-            ))}
+          <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '10px', background: 'white', padding: '8px', borderRadius: '10px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}>
+            {EMOJI_LIST.map(e => <button key={e} onClick={() => handleSendEmoji(e)} style={{ fontSize: '1.5rem', background: 'transparent', border: 'none', cursor: 'pointer' }}>{e}</button>)}
           </div>
         )}
-        <button 
-          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          style={{ 
-            width: '60px', height: '60px', borderRadius: '30px', 
-            background: '#ff9800', color: 'white', border: 'none', 
-            fontSize: '2rem', display: 'flex', justifyContent: 'center', alignItems: 'center',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.5)', cursor: 'pointer',
-            transition: 'transform 0.2s'
-          }}
-          onMouseOver={(e) => e.target.style.transform = 'scale(1.1)'}
-          onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
-        >
-          😀
-        </button>
+        <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ width: '50px', height: '50px', borderRadius: '25px', background: '#ff9800', color: 'white', border: 'none', fontSize: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>😀</button>
       </div>
 
-      {/* 規則與倍率彈窗 */}
       {showRules && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: '#1a4f2c', border: '4px solid #ffd700', borderRadius: '15px',
-            padding: '25px', maxWidth: '500px', width: '90%', color: 'white',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.8)', position: 'relative',
-            maxHeight: '80vh', overflowY: 'auto'
-          }}>
-            <button 
-              onClick={() => setShowRules(false)}
-              style={{ position: 'absolute', top: '5px', right: '15px', background: 'transparent', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}
-            >
-              ✖
-            </button>
-            <h2 style={{ color: '#ffd700', textAlign: 'center', marginTop: 0 }}>📜 撲克鬥牛 規則與賠率</h2>
-            
-            <div style={{ lineHeight: '1.6', fontSize: '1rem' }}>
-              <p><strong>【基本玩法】</strong> 每人發 5 張牌，閒家與庄家比大小。你需要先挑出 3 張加總為 10 的倍數的牌 (湊牛)，剩下 2 張相加的個位數即為「牛幾」。</p>
-              
-              <h3 style={{ color: '#00e676', borderBottom: '1px solid #00e676', paddingBottom: '5px' }}>💰 牌型倍率表 (底注 10)</h3>
-              <ul style={{ paddingLeft: '20px', margin: '10px 0' }}>
-                <li><strong>五小牛、四炸、五花牛：</strong> 5 倍 (贏/輸 50)</li>
-                <li><strong>鬥牛 (牛牛)：</strong> 4 倍 (贏/輸 40)</li>
-                <li><strong>牛九：</strong> 3 倍 (贏/輸 30)</li>
-                <li><strong>牛七、牛八：</strong> 2 倍 (贏/輸 20)</li>
-                <li><strong>無牛 ~ 牛六：</strong> 1 倍 (贏/輸 10)</li>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#1a4f2c', border: '3px solid #ffd700', borderRadius: '15px', padding: '20px', maxWidth: '400px', width: '90%', color: 'white', position: 'relative', maxHeight: '80vh', overflowY: 'auto' }}>
+            <button onClick={() => setShowRules(false)} style={{ position: 'absolute', top: '5px', right: '10px', background: 'transparent', border: 'none', color: '#fff', fontSize: '1.5rem' }}>✖</button>
+            <h2 style={{ color: '#ffd700', textAlign: 'center', margin: '0 0 15px 0', fontSize: '1.3rem' }}>📜 鬥牛規則</h2>
+            <div style={{ lineHeight: '1.5', fontSize: '0.9rem' }}>
+              <p>選出 3 張加總為 10 倍數的牌(湊牛)，剩下 2 張決定「牛幾」。</p>
+              <h3 style={{ color: '#00e676', borderBottom: '1px solid #00e676', fontSize: '1rem' }}>牌型倍率</h3>
+              <ul style={{ paddingLeft: '20px', margin: '5px 0' }}>
+                <li>五小牛/四炸/五花牛：5 倍</li>
+                <li>鬥牛 (牛牛)：4 倍</li>
+                <li>牛九：3 倍</li>
+                <li>牛七、牛八：2 倍</li>
+                <li>無牛 ~ 牛六：1 倍</li>
               </ul>
-
-              <h3 style={{ color: '#00e676', borderBottom: '1px solid #00e676', paddingBottom: '5px' }}>⚖️ 大小比較順序</h3>
-              <p>1. 先比牌型權重 (五小牛 &gt; 牛牛 &gt; 牛八 &gt; 無牛...)</p>
-              <p>2. 若牌型相同，比單張最大牌的點數 (K &gt; Q &gt; J &gt; 10...)</p>
-              <p>3. 若點數也相同，比花色 (♠ &gt; ♥ &gt; ♣ &gt; ♦)</p>
-              <p style={{ color: '#ff1744', fontWeight: 'bold' }}>注意：結算時以「贏家」的倍率來決定輸贏籌碼量！</p>
             </div>
           </div>
         </div>

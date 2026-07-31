@@ -87,7 +87,7 @@ export default function useBlackjackSocket(url, eventHandlers = {}) {
   }, []);
 
   const createRoom = useCallback((settings) => send('BJ_CREATE_ROOM', settings), [send]);  
-  const joinRoom = useCallback((id) => send('BJ_JOIN_ROOM', { roomId: id }), [send]);
+  const joinRoom = useCallback((id, nickname) => send('BJ_JOIN_ROOM', { roomId: id, nickname }), [send]);
   const startGame = useCallback(() => send('BJ_START_GAME', { roomId }), [send, roomId]);
   
   // ✨ 新增玩家操作指令
