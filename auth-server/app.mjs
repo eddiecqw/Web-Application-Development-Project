@@ -137,7 +137,15 @@ function broadcastSystemStatus() {
   const totalOnline = Object.keys(connections).length;
   const mapUsers = Object.values(connections).filter(conn => conn._location).length;
   
-  const statusMsg = JSON.stringify([{ type: 'SYSTEM_STATUS', data: { online: totalOnline, map: mapUsers } }]);
+  const inGameUsers = Object.values(connections).filter(conn => 
+    conn._roomId || conn._niuniuRoomId || conn._bjRoomId || conn._llRoomId
+  ).length;
+  
+  const statusMsg = JSON.stringify([{ 
+    type: 'SYSTEM_STATUS', 
+    data: { online: totalOnline, map: mapUsers, inGame: inGameUsers } 
+  }]);
+  
   Object.values(connections).forEach((conn) => {
     if (conn.readyState === 1) conn.send(statusMsg);
   });
@@ -188,11 +196,11 @@ wsServer.on('connection', async (connection, request) => {
       const callbacks = {
         onRoomCreated: async (newRoomId) => {
           const systemMessage = { sender: 'System', content: `🃏 撲克鬥牛房間 [${newRoomId}] 已創建，快來加入挑戰吧！`, timestamp: new Date(), type: 'system', channel: 'system' };
-          // 🛑 核心修改：系統廣播閱後即焚，不再寫入 DB
           Object.values(connections).forEach((conn) => { if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage])); });
         }
       };
       handleNiuNiuMessage(connection, type, data, wsServer, callbacks);
+      if (['NIUNIU_CREATE_ROOM', 'NIUNIU_JOIN_ROOM', 'NIUNIU_LEAVE_ROOM'].includes(type)) setTimeout(broadcastSystemStatus, 50);
       return; 
     }
 
@@ -201,11 +209,11 @@ wsServer.on('connection', async (connection, request) => {
       const callbacks = {
         onRoomCreated: async (newRoomId, gameName) => {
           const systemMessage = { sender: 'System', content: `🃏 ${gameName} 房間 [${newRoomId}] 已創建，快來加入挑戰吧！`, timestamp: new Date(), type: 'system', channel: 'system' };
-          // 🛑 核心修改：系統廣播閱後即焚，不再寫入 DB
           Object.values(connections).forEach((conn) => { if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage])); });
         }
       };
       handleBlackjackMessage(connection, type, data, wsServer, callbacks);
+      if (['BJ_CREATE_ROOM', 'BJ_JOIN_ROOM', 'BJ_LEAVE_ROOM'].includes(type)) setTimeout(broadcastSystemStatus, 50);
       return; 
     }
 
@@ -214,11 +222,11 @@ wsServer.on('connection', async (connection, request) => {
       const callbacks = {
         onRoomCreated: async (newRoomId, gameName) => {
           const systemMessage = { sender: 'System', content: `💌 ${gameName} 房間 [${newRoomId}] 已創建，快來拆開情書吧！`, timestamp: new Date(), type: 'system', channel: 'system' };
-          // 🛑 核心修改：系統廣播閱後即焚，不再寫入 DB
           Object.values(connections).forEach((conn) => { if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage])); });
         }
       };
       handleLoveLetterMessage(connection, type, data, wsServer, callbacks);
+      if (['LL_CREATE_ROOM', 'LL_JOIN_ROOM', 'LL_LEAVE_ROOM'].includes(type)) setTimeout(broadcastSystemStatus, 50);
       return; 
     }
 
