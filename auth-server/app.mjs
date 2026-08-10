@@ -391,6 +391,17 @@ wsServer.on('connection', async (connection, request) => {
       cleanupBlackjackConnection(connection._username, connection._bjRoomId, wsServer);
       cleanupLoveLetterConnection(connection._username, connection._llRoomId, wsServer);
     }
+
+    if (connection._location) {
+      const leftUsername = connection._username;
+      Object.values(connections).forEach((conn) => {
+        if (conn !== connection && conn.readyState === 1) {
+          conn.send(JSON.stringify({ type: 'USER_LEFT_MAP', data: { username: leftUsername } }));
+        }
+      });
+      delete connection._location;
+    }
+
     const roomId = connection._roomId;
     const playerId = connection._playerId;
 
