@@ -14,7 +14,9 @@ export function Home({ username ,onLogout}) {
   const [message, setMessage] = useState('');
   const [onlineCount, setOnlineCount] = useState(1);
   const [mapCount, setMapCount] = useState(0);
-  
+  const isGuestUser = /^guest_/i.test(username);
+  const [showGuestModal, setShowGuestPopup] = useState(false);
+
   const [activeTab, setActiveTab] = useState('world'); 
   // ✨ 核心修復 1：用 Ref 追蹤當前的 Tab，避免切換 Tab 時重複觸發訊息接收
   const activeTabRef = useRef(activeTab);
@@ -66,6 +68,11 @@ export function Home({ username ,onLogout}) {
   };
 
   const loadMoreMessages = () => {
+    if (isGuestUser) {
+      setShowGuestPopup(true);
+      return;
+    }
+
     if (isLoadingHistory || !hasMore) return;
     setIsLoadingHistory(true);
     isLoadingMoreRef.current = true;
@@ -429,6 +436,47 @@ export function Home({ username ,onLogout}) {
           <div style={{ fontSize: '12px', marginTop: '10px', color: '#666' }}>(Your chat history is securely saved. Scroll up to load more.)</div>
         </div>
       </div>
+      {/*遊客專屬的呼出式彈窗 */}
+      {showGuestModal && (
+        <div style={{ 
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', 
+          backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', justifyContent: 'center', 
+          alignItems: 'center', zIndex: 9999, backdropFilter: 'blur(4px)' 
+        }}>
+          <div style={{ 
+            background: 'linear-gradient(145deg, #ffffff, #f0f0f0)', 
+            padding: '30px 25px', borderRadius: '20px', textAlign: 'center', 
+            maxWidth: '320px', width: '85%', boxShadow: '0 15px 35px rgba(0,0,0,0.5)',
+            border: '2px solid #e0e0e0', animation: 'fadeUp 0.3s ease-out'
+          }}>
+            <div style={{ fontSize: '3.5rem', marginBottom: '10px', textShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>🔒</div>
+            <h2 style={{ margin: '0 0 12px 0', color: '#1f2937', fontSize: '1.4rem' }}>專屬會員功能</h2>
+            <p style={{ color: '#4b5563', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '25px', fontWeight: '500' }}>
+              遊客模式無法解鎖歷史聊天紀錄。<br />
+              <span style={{ color: '#d97706' }}>免費註冊正式帳號，探索過去的精采對話與完整功能！</span>
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button 
+                onClick={() => setShowGuestPopup(false)} 
+                style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', background: '#e5e7eb', color: '#4b5563', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.95rem', transition: 'background 0.2s' }}
+                onMouseOver={(e) => e.target.style.background = '#d1d5db'}
+                onMouseOut={(e) => e.target.style.background = '#e5e7eb'}
+              >
+                先逛逛
+              </button>
+              <button 
+                onClick={() => { setShowGuestPopup(false); handleLogout(); }} 
+                style={{ flex: 1.5, padding: '10px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.95rem', boxShadow: '0 4px 10px rgba(37,99,235,0.3)' }}
+                onMouseOver={(e) => e.target.style.opacity = '0.9'}
+                onMouseOut={(e) => e.target.style.opacity = '1'}
+              >
+                🚀 去註冊 / 登入
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
