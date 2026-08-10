@@ -16,10 +16,12 @@ export function Home({ username ,onLogout}) {
   const [mapCount, setMapCount] = useState(0);
   const [inGameCount, setInGameCount] = useState(0);
   const isGuestUser = /^guest_/i.test(username);
+  
   const [showGuestModal, setShowGuestPopup] = useState(false);
+  // ✨ 新增：控制遊戲中心彈窗的狀態
+  const [showGameCenter, setShowGameCenter] = useState(false);
 
   const [activeTab, setActiveTab] = useState('world'); 
-  // ✨ 核心修復 1：用 Ref 追蹤當前的 Tab，避免切換 Tab 時重複觸發訊息接收
   const activeTabRef = useRef(activeTab);
   useEffect(() => {
     activeTabRef.current = activeTab;
@@ -124,7 +126,6 @@ export function Home({ username ,onLogout}) {
         const sysMsgs = validMessages.filter(m => m.type === 'system');
         if (sysMsgs.length > 0) {
           setToastMsg(sysMsgs[sysMsgs.length - 1].content);
-          // ✨ 使用 activeTabRef 來判斷，就不會產生依賴連鎖反應
           if (activeTabRef.current !== 'system') setUnreadSystemCount(c => c + sysMsgs.length);
         }
 
@@ -133,7 +134,6 @@ export function Home({ username ,onLogout}) {
           if (isAtBottomRef.current || hasMyMessage) {
             forceScrollRef.current = true;
           } else {
-            // ✨ 同樣使用 activeTabRef
             const visibleMsgs = validMessages.filter(m => (activeTabRef.current === 'world' && m.type !== 'system') || (activeTabRef.current === 'system' && m.type === 'system'));
             if (visibleMsgs.length > 0) setUnreadCount(c => c + visibleMsgs.length);
           }
@@ -141,7 +141,6 @@ export function Home({ username ,onLogout}) {
         });
       }
     }
-  // ✨ 核心修復 2：從依賴陣列中徹底移除 activeTab，解決切換 Tab 會重複跑馬燈與重複訊息的 Bug！
   }, [lastJsonMessage, username]); 
 
   useEffect(() => {
@@ -230,12 +229,16 @@ export function Home({ username ,onLogout}) {
             90% { opacity: 1; transform: translate(-50%, 0); }
             100% { opacity: 0; transform: translate(-50%, -20px); }
           }
+          /* ✨ 新增彈窗專用的優雅彈出動畫 */
+          @keyframes pop-in {
+            0% { opacity: 0; transform: scale(0.95) translateY(10px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+          }
         `}
       </style>
 
       <div className="content-wrapper" style={{ position: 'relative' }}>
         
-        {/* ✨ 核心修復 3：全域系統浮動提示 (解決文字超出螢幕的問題) */}
         {toastMsg && activeTab === 'world' && (
           <div style={{ 
             position: 'absolute', top: '15px', left: '50%', transform: 'translate(-50%, 0)', 
@@ -243,7 +246,7 @@ export function Home({ username ,onLogout}) {
             padding: '10px 20px', borderRadius: '25px', fontSize: '0.9rem', 
             fontWeight: 'bold', boxShadow: '0 4px 15px rgba(0,0,0,0.4)', 
             border: '1px solid #b45309', 
-            maxWidth: '90vw', wordBreak: 'break-word', textAlign: 'center', whiteSpace: 'normal', lineHeight: '1.4', /* ✨ 允許換行且限制寬度 */
+            maxWidth: '90vw', wordBreak: 'break-word', textAlign: 'center', whiteSpace: 'normal', lineHeight: '1.4',
             animation: 'toast-fade 3.5s forwards', pointerEvents: 'none' 
           }}>
             🔔 {toastMsg}
@@ -252,68 +255,52 @@ export function Home({ username ,onLogout}) {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <h1 className='rainbow-text' style={{ margin: 0 }}>Chat Room</h1>
-          <div style={{ display: 'flex', gap: '15px', background: 'rgba(255,255,255,0.75)', padding: '8px 16px', borderRadius: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', fontWeight: 'bold', fontSize: '0.9rem' }}>
-            <span style={{ color: '#4caf50', display: 'flex', alignItems: 'center', gap: '5px' }}>🟢 在線人數: {onlineCount}</span>
-            <span style={{ color: '#2196f3', display: 'flex', alignItems: 'center', gap: '5px' }}>🌎 地圖探索中: {mapCount}</span>
-            <span style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '5px' }}>🎮 遊戲中: {inGameCount}</span>
+          
+          {/* ✨ 頂部狀態列整合為導航列 */}
+          <div style={{ display: 'flex', gap: '10px', background: 'rgba(255,255,255,0.85)', padding: '6px 12px', borderRadius: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 'bold', fontSize: '0.85rem' }}>
+            
+            <span style={{ color: '#4caf50', display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px' }}>
+              🟢 在線: {onlineCount}
+            </span>
+            
+            <span 
+              onClick={() => navigate('/map')}
+              style={{ color: '#2196f3', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', padding: '4px 8px', borderRadius: '12px', background: 'rgba(33, 150, 243, 0.1)', transition: 'all 0.2s' }}
+              onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(33, 150, 243, 0.2)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(33, 150, 243, 0.1)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              title="點擊進入探索地圖"
+            >
+              🌎 地圖: {mapCount} <span style={{ fontSize: '0.75rem' }}>↗</span>
+            </span>
+
+            {/* ✨ 將遊戲中狀態改為可點擊的按鈕，呼出遊戲中心 */}
+            <span 
+              onClick={() => setShowGameCenter(true)}
+              style={{ color: '#ea580c', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', padding: '4px 8px', borderRadius: '12px', background: 'rgba(249, 115, 22, 0.1)', transition: 'all 0.2s' }}
+              onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(249, 115, 22, 0.2)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(249, 115, 22, 0.1)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              title="點擊進入遊戲中心"
+            >
+              🎮 遊戲: {inGameCount} <span style={{ fontSize: '0.75rem' }}>↗</span>
+            </span>
           </div>
         </div>
-        
-        <div className='name' style={{ marginTop: '5px' }}>Some extra functions:</div>
-        
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', margin: '15px 0' }}>
-          <button 
-            onClick={() => navigate('/blackjack')} 
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '30px', padding: '0 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', textShadow: '1px 1px 2px rgba(0,0,0,0.8)', boxSizing: 'border-box', background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: '#93c5fd', border: '1px solid #334155' }}
-          >
-            <span style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}>🎰</span> 21點
-          </button>
-
-          <button 
-            onClick={() => navigate('/niuniu')} 
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '30px', padding: '0 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', textShadow: '1px 1px 2px rgba(0,0,0,0.8)', boxSizing: 'border-box', background: 'linear-gradient(135deg, #1b4d2e 0%, #0d2617 100%)', color: '#a7f3d0', border: '1px solid #2e6930' }}
-          >
-            <span style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}>🃏</span> 撲克鬥牛
-          </button>
-
-          <button 
-            onClick={() => navigate('/loveletter')} 
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '30px', padding: '0 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', textShadow: '1px 1px 2px rgba(0,0,0,0.8)', boxSizing: 'border-box', background: 'linear-gradient(135deg, #7f1d1d 0%, #4a0404 100%)', color: '#fcd34d', border: '1px solid #b45309' }}
-          >
-            <span style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}>💌</span> 情書
-          </button>
-
-          <button 
-            onClick={() => navigate('/map')} 
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '30px', padding: '0 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', textShadow: '1px 1px 2px rgba(0,0,0,0.8)', boxSizing: 'border-box', background: 'linear-gradient(135deg, #0f766e 0%, #042f2e 100%)', color: '#99f6e4', border: '1px solid #115e59' }}
-          >
-            <span style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}>🌏</span> 地圖探索
-          </button>
-
-          <button 
-            onClick={() => navigate('/draw-guess')} 
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '30px', padding: '0 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', textShadow: '1px 1px 2px rgba(0,0,0,0.8)', boxSizing: 'border-box', background: 'linear-gradient(135deg, #6b21a8 0%, #3b0764 100%)', color: '#e9d5ff', border: '1px solid #581c87' }}
-          >
-            <span style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}>🎨</span> 你畫我猜
-          </button>
-        </div>
   
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', flex: 1, overflow: 'hidden', minHeight: '200px' }}>
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', flex: 1, overflow: 'hidden', minHeight: '200px', marginTop: '15px' }}>
           
           <div style={{ display: 'flex', gap: '5px', padding: '0 15px', marginTop: '5px' }}>
             <button 
               onClick={() => { setActiveTab('world'); forceScrollRef.current = true; }}
               style={{ 
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', /* ✨ 使用 Flex 置中並統一間距 */
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                 flex: 1, padding: '10px', borderRadius: '12px 12px 0 0', border: 'none', 
                 background: activeTab === 'world' ? '#fff' : 'rgba(255,255,255,0.4)', 
                 fontWeight: 'bold', cursor: 'pointer', 
                 borderBottom: activeTab === 'world' ? '4px solid #4caf50' : '4px solid transparent', 
                 color: activeTab === 'world' ? '#333' : '#666', transition: 'all 0.2s',
-                fontSize: '0.80rem' /* ✨ 設定文字大小 */
+                fontSize: '0.80rem' 
               }}
             >
-              {/* ✨ 將圖示獨立包起來，設定合適的大小 (例如 1.05rem 或 1.1rem) */}
               <span style={{ fontSize: '0.80rem', display: 'flex', alignItems: 'center' }}>🌍</span> 
               <span>綜合大廳</span>
             </button>
@@ -321,16 +308,15 @@ export function Home({ username ,onLogout}) {
             <button 
               onClick={() => { setActiveTab('system'); setUnreadSystemCount(0); forceScrollRef.current = true; }}
               style={{ 
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', /* ✨ 使用 Flex 置中並統一間距 */
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                 flex: 1, padding: '10px', borderRadius: '12px 12px 0 0', border: 'none', 
                 background: activeTab === 'system' ? '#fff' : 'rgba(255,255,255,0.4)', 
                 fontWeight: 'bold', cursor: 'pointer', 
                 borderBottom: activeTab === 'system' ? '4px solid #f44336' : '4px solid transparent', 
                 color: activeTab === 'system' ? '#333' : '#666', transition: 'all 0.2s',
-                fontSize: '0.80rem' /* ✨ 設定文字大小 */
+                fontSize: '0.80rem'
               }}
             >
-              {/* ✨ 將圖示獨立包起來控制大小 */}
               <span style={{ fontSize: '0.80rem', display: 'flex', alignItems: 'center' }}>📢</span> 
               <span>系統廣播</span>
               {unreadSystemCount > 0 && activeTab !== 'system' && (
@@ -439,6 +425,63 @@ export function Home({ username ,onLogout}) {
           <div style={{ fontSize: '12px', marginTop: '10px', color: '#666' }}>(Your chat history is securely saved. Scroll up to load more.)</div>
         </div>
       </div>
+
+      {/* ✨ 全新：遊戲中心彈窗 (Game Center Modal) */}
+      {showGameCenter && (
+        <div 
+          style={{ 
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', 
+            backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', 
+            alignItems: 'center', zIndex: 9999, backdropFilter: 'blur(5px)' 
+          }}
+          onClick={() => setShowGameCenter(false)} // 點擊背景關閉
+        >
+          <div 
+            style={{ 
+              background: 'linear-gradient(145deg, #ffffff, #f8fafc)', 
+              padding: '25px', borderRadius: '24px', width: '90%', maxWidth: '340px', 
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)', animation: 'pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+              display: 'flex', flexDirection: 'column', gap: '15px'
+            }}
+            onClick={e => e.stopPropagation()} // 防止點擊面板本身時關閉
+          >
+            {/* 彈窗頭部 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px' }}>
+              <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🎮 遊戲中心
+              </h2>
+              <button 
+                onClick={() => setShowGameCenter(false)} 
+                style={{ background: '#f1f5f9', border: 'none', width: '30px', height: '30px', borderRadius: '15px', color: '#64748b', fontSize: '1rem', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'background 0.2s' }}
+                onMouseOver={(e) => e.target.style.background = '#e2e8f0'}
+                onMouseOut={(e) => e.target.style.background = '#f1f5f9'}
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* 遊戲列表 (充滿寬度，乾淨整齊) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '5px' }}>
+              <button onClick={() => navigate('/blackjack')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderRadius: '16px', border: '1px solid #334155', background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: '#93c5fd', fontWeight: 'bold', fontSize: '1.05rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', width: '100%', transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.98)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>
+                <span style={{ fontSize: '1.5rem' }}>🎰</span> 21點 Blackjack
+              </button>
+              
+              <button onClick={() => navigate('/niuniu')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderRadius: '16px', border: '1px solid #2e6930', background: 'linear-gradient(135deg, #1b4d2e 0%, #0d2617 100%)', color: '#a7f3d0', fontWeight: 'bold', fontSize: '1.05rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', width: '100%', transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.98)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>
+                <span style={{ fontSize: '1.5rem' }}>🃏</span> 撲克鬥牛 NiuNiu
+              </button>
+              
+              <button onClick={() => navigate('/loveletter')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderRadius: '16px', border: '1px solid #b45309', background: 'linear-gradient(135deg, #7f1d1d 0%, #4a0404 100%)', color: '#fcd34d', fontWeight: 'bold', fontSize: '1.05rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', width: '100%', transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.98)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>
+                <span style={{ fontSize: '1.5rem' }}>💌</span> 宮廷情書 Love Letter
+              </button>
+              
+              <button onClick={() => navigate('/draw-guess')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderRadius: '16px', border: '1px solid #581c87', background: 'linear-gradient(135deg, #6b21a8 0%, #3b0764 100%)', color: '#e9d5ff', fontWeight: 'bold', fontSize: '1.05rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', width: '100%', transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.98)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>
+                <span style={{ fontSize: '1.5rem' }}>🎨</span> 你畫我猜 Draw Guess
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/*遊客專屬的呼出式彈窗 */}
       {showGuestModal && (
         <div style={{ 
@@ -450,7 +493,7 @@ export function Home({ username ,onLogout}) {
             background: 'linear-gradient(145deg, #ffffff, #f0f0f0)', 
             padding: '30px 25px', borderRadius: '20px', textAlign: 'center', 
             maxWidth: '320px', width: '85%', boxShadow: '0 15px 35px rgba(0,0,0,0.5)',
-            border: '2px solid #e0e0e0', animation: 'fadeUp 0.3s ease-out'
+            border: '2px solid #e0e0e0', animation: 'pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
           }}>
             <div style={{ fontSize: '3.5rem', marginBottom: '10px', textShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>🔒</div>
             <h2 style={{ margin: '0 0 12px 0', color: '#1f2937', fontSize: '1.4rem' }}>專屬會員功能</h2>
