@@ -135,7 +135,11 @@ const MapComponent = () => {
     } else if (type === 'EXISTING_USER_POSITIONS') {
       const userMap = {};
       data.forEach((user) => { userMap[user.username] = [user.latitude, user.longitude]; });
-      setOtherUsers((prev) => ({ ...prev, ...userMap }));
+      
+      // 不要用 prev 保留舊資料！直接「完整替換」為伺服器給的最準確名單
+      // 這樣只要 GPS 一更新，所有卡住的幽靈玩家就會瞬間被清空！
+      setOtherUsers(userMap);
+      
     } else if (type === 'USER_LEFT_MAP') {
       setOtherUsers((prev) => {
         const newUsers = { ...prev };
