@@ -14,6 +14,7 @@ export function Home({ username ,onLogout}) {
   const [message, setMessage] = useState('');
   const [onlineCount, setOnlineCount] = useState(1);
   const [mapCount, setMapCount] = useState(0);
+  const [inGameCount, setInGameCount] = useState(0);
   const isGuestUser = /^guest_/i.test(username);
   const [showGuestModal, setShowGuestPopup] = useState(false);
 
@@ -114,6 +115,7 @@ export function Home({ username ,onLogout}) {
       if (statusMsg) {
         setOnlineCount(statusMsg.data.online);
         setMapCount(statusMsg.data.map);
+        setInGameCount(statusMsg.data.inGame || 0);
       }
 
       const validMessages = lastJsonMessage.filter(msg => msg?.type === 'text' || msg?.type === 'file' || msg?.type === 'system');
@@ -253,6 +255,7 @@ export function Home({ username ,onLogout}) {
           <div style={{ display: 'flex', gap: '15px', background: 'rgba(255,255,255,0.75)', padding: '8px 16px', borderRadius: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', fontWeight: 'bold', fontSize: '0.9rem' }}>
             <span style={{ color: '#4caf50', display: 'flex', alignItems: 'center', gap: '5px' }}>🟢 在線人數: {onlineCount}</span>
             <span style={{ color: '#2196f3', display: 'flex', alignItems: 'center', gap: '5px' }}>🌎 地圖探索中: {mapCount}</span>
+            <span style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '5px' }}>🎮 遊戲中: {inGameCount}</span>
           </div>
         </div>
         
