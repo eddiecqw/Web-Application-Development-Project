@@ -305,6 +305,21 @@ export default function LoveLetterPage({ user }) {
           @keyframes anim-princess { 0% { transform: scale(1); opacity: 0; } 20% { transform: scale(1.8); opacity: 1; filter: drop-shadow(0 0 20px #ef4444); } 80% { transform: scale(1.8); opacity: 1; } 100% { transform: scale(0.5) translateY(50px); opacity: 0; } }
           @keyframes banner-fade { 0% { width: 0%; opacity: 0; } 10% { width: 100%; opacity: 1; } 90% { width: 100%; opacity: 1; } 100% { width: 0%; opacity: 0; } }
           @keyframes text-fade { 0% { opacity: 0; transform: translateY(10px); } 15% { opacity: 1; transform: translateY(0); } 85% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
+          /* ✨ 新增：自己專用的向上漂浮動畫 */
+          @keyframes emoji-float-up {
+            0% { opacity: 0; transform: translateX(-50%) translateY(0) scale(0.5); }
+            20% { opacity: 1; transform: translateX(-50%) translateY(-20px) scale(1.2); }
+            80% { opacity: 1; transform: translateX(-50%) translateY(-40px) scale(1); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-50px) scale(0.8); }
+          }
+          
+          /* ✨ 新增：對手專用的向下漂浮動畫 */
+          @keyframes emoji-float-down {
+            0% { opacity: 0; transform: translateX(-50%) translateY(0) scale(0.5); }
+            20% { opacity: 1; transform: translateX(-50%) translateY(20px) scale(1.2); }
+            80% { opacity: 1; transform: translateX(-50%) translateY(40px) scale(1); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(50px) scale(0.8); }
+          }
         `}
       </style>
 
@@ -445,7 +460,11 @@ export default function LoveLetterPage({ user }) {
 
         {opponents.map((opp, index) => (
           <div key={opp.name} style={{ ...getOpponentStyle(index, opponents.length), border: roomData?.turn === opp.name ? '2px solid #fcd34d' : '1px solid rgba(255,255,255,0.1)', opacity: opp.isAlive ? 1 : 0.5 }}>
-            {activeEmojis[opp.name] && <div style={{ position: 'absolute', top: '-30px', left: '50%', transform: 'translateX(-50%)', fontSize: '1.5rem', zIndex: 10 }}>{activeEmojis[opp.name]}</div>}
+           {activeEmojis[opp.name] && (
+              <div style={{ position: 'absolute', top: '100%', left: '50%', fontSize: '2.5rem', zIndex: 100, animation: 'emoji-float-down 2.5s forwards', pointerEvents: 'none' }}>
+                {activeEmojis[opp.name]}
+              </div>
+            )}
             
             <div style={{ color: opp.isAlive ? '#fff' : '#9ca3af', fontWeight: 'bold', fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }}>
               {opp.nickname || opp.name.split('@')[0]}
