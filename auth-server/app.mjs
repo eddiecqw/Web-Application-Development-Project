@@ -195,7 +195,7 @@ wsServer.on('connection', async (connection, request) => {
       data.username = connection._username || data.username; 
       const callbacks = {
         onRoomCreated: async (newRoomId) => {
-          const systemMessage = { sender: 'System', content: `🃏 撲克鬥牛房間 [${newRoomId}] 已創建，快來加入挑戰吧！`, timestamp: new Date(), type: 'system', channel: 'system' };
+          const systemMessage = { sender: 'System', content: `🃏 撲克鬥牛房間 [${newRoomId}] 已創建，快來加入挑戰吧！`, timestamp: new Date(), type: 'system', channel: 'system', gameType: 'niuniu', gameRoomId: newRoomId };
           Object.values(connections).forEach((conn) => { if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage])); });
         }
       };
@@ -208,7 +208,7 @@ wsServer.on('connection', async (connection, request) => {
       data.username = connection._username || data.username; 
       const callbacks = {
         onRoomCreated: async (newRoomId, gameName) => {
-          const systemMessage = { sender: 'System', content: `🃏 ${gameName} 房間 [${newRoomId}] 已創建，快來加入挑戰吧！`, timestamp: new Date(), type: 'system', channel: 'system' };
+          const systemMessage = { sender: 'System', content: `🃏 ${gameName} 房間 [${newRoomId}] 已創建，快來加入挑戰吧！`, timestamp: new Date(), type: 'system', channel: 'system', gameType: 'blackjack', gameRoomId: newRoomId };
           Object.values(connections).forEach((conn) => { if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage])); });
         }
       };
@@ -221,7 +221,7 @@ wsServer.on('connection', async (connection, request) => {
       data.username = connection._username || data.username; 
       const callbacks = {
         onRoomCreated: async (newRoomId, gameName) => {
-          const systemMessage = { sender: 'System', content: `💌 ${gameName} 房間 [${newRoomId}] 已創建，快來拆開情書吧！`, timestamp: new Date(), type: 'system', channel: 'system' };
+          const systemMessage = { sender: 'System', content: `💌 ${gameName} 房間 [${newRoomId}] 已創建，快來拆開情書吧！`, timestamp: new Date(), type: 'system', channel: 'system', gameType: 'loveletter', gameRoomId: newRoomId };
           Object.values(connections).forEach((conn) => { if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage])); });
         }
       };
@@ -329,7 +329,7 @@ wsServer.on('connection', async (connection, request) => {
         connection._roomId = roomId;
         connection._playerId = playerId;
       
-        const systemMessage = { sender: 'System', content: `房間 ${roomId} 已創建，輸入 /join ${roomId} 加入遊戲`, timestamp: new Date(), type: 'system', channel: 'system' };
+        const systemMessage = { sender: 'System', content: `🎨 你畫我猜房間 [${roomId}] 已創建，快來大展身手吧！`, timestamp: new Date(), type: 'system', channel: 'system', gameType: 'draw-guess', gameRoomId: roomId };
         
         // 🛑 核心修改：系統廣播閱後即焚，不再寫入 DB
         Object.values(connections).forEach((conn) => { conn.send(JSON.stringify([systemMessage])); });
