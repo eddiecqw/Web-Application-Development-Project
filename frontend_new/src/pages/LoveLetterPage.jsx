@@ -67,20 +67,18 @@ export default function LoveLetterPage({ user }) {
     }
   });
 
-  // ✨ 核心修復：在解析日誌前，先進行暱稱翻譯
+// ✨ 核心修復：暱稱翻譯與「無事發生」的邊界條件攔截
   useEffect(() => {
     if (roomData?.actionLog && roomData.actionLog !== currentLog) {
       const rawLog = roomData.actionLog;
       setCurrentLog(rawLog);
       
-      // 動態翻譯：將 log 內的原始帳號替換為自訂暱稱
       let translatedLog = rawLog;
       if (roomData?.players) {
         roomData.players.forEach(p => {
           const rawName = p.name.split('@')[0];
           const nickname = p.nickname || rawName;
           if (rawName !== nickname) {
-            // 利用 split 與 join 達成全域替換，確保同一句話中出現多次也能被修改
             translatedLog = translatedLog.split(`【${rawName}】`).join(`【${nickname}】`);
           }
         });
@@ -93,23 +91,33 @@ export default function LoveLetterPage({ user }) {
       });
 
       if (!translatedLog.includes('遊戲開始') && !translatedLog.includes('只剩') && !translatedLog.includes('牌庫耗盡')) {
+        
+        // 🛡️ 新增邏輯：判斷是否因為對方被「侍女」保護而打空
+        const isDud = translatedLog.includes('無事發生') || translatedLog.includes('不受影響');
+
         let animType = null;
         let emoji = '';
 
-        if (translatedLog.includes('[衛兵]')) { animType = 'guard'; emoji = translatedLog.includes('出局') ? '🗡️🎯' : '🗡️🛡️'; }
-        else if (translatedLog.includes('[神父]')) { animType = 'priest'; emoji = '👁️'; }
-        else if (translatedLog.includes('[男爵]')) { animType = 'baron'; emoji = '⚔️'; }
-        else if (translatedLog.includes('[侍女]')) { animType = 'handmaid'; emoji = '🛡️✨'; }
-        else if (translatedLog.includes('[王子]')) { animType = 'prince'; emoji = '🌪️'; }
-        else if (translatedLog.includes('[國王]')) { animType = 'king'; emoji = '🔄'; }
-        else if (translatedLog.includes('[伯爵夫人]')) { animType = 'countess'; emoji = '🌹✨'; }
-        else if (translatedLog.includes('[公主]')) { animType = 'princess'; emoji = '💔'; }
+        if (isDud) {
+          // 如果無事發生，給一個「💨 撲空」的通用動畫，強制攔截對決動畫！
+          animType = 'generic'; 
+          emoji = '💨'; 
+        } else {
+          // 只有在真的有效發動時，才賦予專屬卡牌動畫
+          if (translatedLog.includes('[衛兵]')) { animType = 'guard'; emoji = translatedLog.includes('出局') ? '🗡️🎯' : '🗡️🛡️'; }
+          else if (translatedLog.includes('[神父]')) { animType = 'priest'; emoji = '👁️'; }
+          else if (translatedLog.includes('[男爵]')) { animType = 'baron'; emoji = '⚔️'; }
+          else if (translatedLog.includes('[侍女]')) { animType = 'handmaid'; emoji = '🛡️✨'; }
+          else if (translatedLog.includes('[王子]')) { animType = 'prince'; emoji = '🌪️'; }
+          else if (translatedLog.includes('[國王]')) { animType = 'king'; emoji = '🔄'; }
+          else if (translatedLog.includes('[伯爵夫人]')) { animType = 'countess'; emoji = '🌹✨'; }
+          else if (translatedLog.includes('[公主]')) { animType = 'princess'; emoji = '💔'; }
+        }
 
         if (animType) {
           const matches = [...translatedLog.matchAll(/【(.*?)】/g)];
-          // 因為已經翻譯過，這裡解析出來的就是完美的暱稱了
           const sourceName = matches[0] ? matches[0][1] : '系統';
-          const targetName = matches[1] ? matches[1][1] : '對手';
+          const targetName = matches[1] ? matches[1][1] : '無人';
           const actionText = translatedLog.split('，')[1] || translatedLog;
           
           setActiveAnim({ type: animType, emoji, sourceName, targetName, actionText });
@@ -303,6 +311,8 @@ export default function LoveLetterPage({ user }) {
           @keyframes anim-king { 0% { transform: rotateY(0deg) scale(1); } 50% { transform: rotateY(180deg) scale(1.5); filter: drop-shadow(0 0 20px #fbbf24); } 100% { transform: rotateY(360deg) scale(1); } }
           @keyframes anim-countess { 0% { transform: translateY(-50px) scale(0.5); opacity: 0; } 50% { transform: translateY(0) scale(1.5); opacity: 1; filter: drop-shadow(0 0 30px #ef4444); } 100% { transform: translateY(50px) scale(0.5); opacity: 0; } }
           @keyframes anim-princess { 0% { transform: scale(1); opacity: 0; } 20% { transform: scale(1.8); opacity: 1; filter: drop-shadow(0 0 20px #ef4444); } 80% { transform: scale(1.8); opacity: 1; } 100% { transform: scale(0.5) translateY(50px); opacity: 0; } }
+          /* ✨ 新增：撲空時的通用動畫 */
+          @keyframes anim-generic { 0% { transform: translateY(30px) scale(0.5); opacity: 0; } 50% { transform: translateY(0) scale(1.5); opacity: 1; filter: drop-shadow(0 0 10px #fff); } 100% { transform: translateY(-30px) scale(0.5); opacity: 0; } }
           @keyframes banner-fade { 0% { width: 0%; opacity: 0; } 10% { width: 100%; opacity: 1; } 90% { width: 100%; opacity: 1; } 100% { width: 0%; opacity: 0; } }
           @keyframes text-fade { 0% { opacity: 0; transform: translateY(10px); } 15% { opacity: 1; transform: translateY(0); } 85% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
           /* ✨ 新增：自己專用的向上漂浮動畫 */
