@@ -352,8 +352,24 @@ export function Home({ username ,onLogout}) {
               if (msg.type === 'system') {
                 return (
                   <div key={index} style={{ display: 'flex', justifyContent: 'center', width: '100%', margin: '5px 0' }}>
-                    <div style={{ background: 'rgba(0,0,0,0.08)', padding: '6px 14px', borderRadius: '20px', fontSize: '0.85rem', color: '#666', fontWeight: 'bold' }}>
-                      🔔 {msg.content}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(0,0,0,0.08)', padding: '6px 14px', borderRadius: '20px', fontSize: '0.85rem', color: '#666', fontWeight: 'bold' }}>
+                      <span>🔔 {msg.content}</span>
+                      
+                      {/* ✨ 新增：如果廣播帶有房間屬性，渲染一鍵加入按鈕 */}
+                      {msg.gameRoomId && msg.gameType && (
+                        <button 
+                          onClick={() => navigate(`/${msg.gameType}`, { state: { autoJoinRoomId: msg.gameRoomId } })}
+                          style={{ 
+                            padding: '4px 10px', background: 'linear-gradient(to right, #3b82f6, #2563eb)', 
+                            color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', 
+                            fontSize: '0.75rem', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'transform 0.1s' 
+                          }}
+                          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
+                          onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                        >
+                          🚀 一鍵加入
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
