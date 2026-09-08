@@ -236,9 +236,16 @@ export function handleLoveLetterMessage(ws, type, data, wss, callbacks) {
       const targetPlayer = targetName ? room.players.find(p => p.name === targetName) : null;
       let actionLog = `【${username.split('@')[0]}】打出了 [${playedCard.name}]`;
 
+      // 定義需要目標的卡牌 (排除 5 號王子，因為王子可以指定自己)
+      const needsTarget = [1, 2, 3, 6].includes(cardValue);
+
       if (targetPlayer && targetPlayer.isProtected && cardValue !== 5) {
         actionLog += `，但目標受侍女保護，無事發生。`;
       } 
+      else if (needsTarget && !targetPlayer) {
+        // 🛡️ API 防護：若卡牌需要目標但前端傳來 null，明確宣告無事發生
+        actionLog += `，但沒有可選目標，無事發生。`;
+      }
       else {
         switch (cardValue) {
           case 1:
