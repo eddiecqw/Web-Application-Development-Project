@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import useNiuNiuSocket from '../hooks/useNiuNiuSocket';
 import NiuNiuLobby from '../components/Game/NiuNiuLobby';
 
@@ -38,6 +38,8 @@ function compareHands(handA, resultA, handB, resultB) {
 
 export default function NiuNiuPage({ user }) {
   const navigate = useNavigate();
+  const location = useLocation(); 
+  const autoJoinInterval = useRef(null);
   const username = user.email;
   const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:53840/ws'}?username=${encodeURIComponent(username)}`;
 
@@ -66,7 +68,31 @@ export default function NiuNiuPage({ user }) {
       setTimeout(() => setActiveEmojis(prev => { const n = { ...prev }; delete n[data.username]; return n; }), 3000);
     }
   });
+// ✨ 一鍵加入：攔截路由並自動重試
+  useEffect(() => {
+    if (location.state?.autoJoinRoomId && !roomId) {
+      const targetId = location.state.autoJoinRoomId;
+      const nickname = user.email.split('@')[0];
+      
+      autoJoinInterval.current = setInterval(() => {
+        joinRoom(targetId, nickname);
+      }, 300);
 
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.state, navigate, location.pathname, user.email, joinRoom, roomId]);
+
+  useEffect(() => {
+    if (roomId && autoJoinInterval.current) {
+      clearInterval(autoJoinInterval.current);
+      autoJoinInterval.current = null;
+    }
+  }, [roomId]);
+
+  useEffect(() => {
+    return () => { if (autoJoinInterval.current) clearInterval(autoJoinInterval.current); };
+  }, []);
+  
   const handleSendEmoji = (emoji) => { sendEmoji(emoji); setShowEmojiPicker(false); };
 
   const [selectedIndices, setSelectedIndices] = useState([]);

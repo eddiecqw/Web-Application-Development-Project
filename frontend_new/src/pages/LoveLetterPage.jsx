@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import useLoveLetterSocket from '../hooks/useLoveLetterSocket';
 import LoveLetterLobby from '../components/Game/LoveLetterLobby';
 
@@ -16,6 +16,8 @@ const CARD_DEFINITIONS = [
 
 export default function LoveLetterPage({ user }) {
   const navigate = useNavigate();
+  const location = useLocation(); 
+  const autoJoinInterval = useRef(null);
   const username = user.email;
   
   const baseWsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:53840/ws';
@@ -66,6 +68,31 @@ export default function LoveLetterPage({ user }) {
       }, 3000);
     }
   });
+
+// ✨ 一鍵加入：攔截路由並自動重試
+  useEffect(() => {
+    if (location.state?.autoJoinRoomId && !roomId) {
+      const targetId = location.state.autoJoinRoomId;
+      const nickname = user.email.split('@')[0];
+      
+      autoJoinInterval.current = setInterval(() => {
+        joinRoom(targetId, nickname);
+      }, 300);
+
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.state, navigate, location.pathname, user.email, joinRoom, roomId]);
+
+  useEffect(() => {
+    if (roomId && autoJoinInterval.current) {
+      clearInterval(autoJoinInterval.current);
+      autoJoinInterval.current = null;
+    }
+  }, [roomId]);
+
+  useEffect(() => {
+    return () => { if (autoJoinInterval.current) clearInterval(autoJoinInterval.current); };
+  }, []);
 
 // ✨ 核心修復：暱稱翻譯與「無事發生」的邊界條件攔截
   useEffect(() => {

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import useGameSocket from '../hooks/useGameSocket';
 import CanvasBoard from '../components/Game/CanvasBoard';
 import GameLobby from '../components/Game/GameLobby';
@@ -7,6 +7,8 @@ import GameLobby from '../components/Game/GameLobby';
 export default function DrawGuessPage({ user }) {
   const canvasRef = useRef();
   const navigate = useNavigate();
+  const location = useLocation(); 
+  const autoJoinInterval = useRef(null);
   const [messages, setMessages] = useState([]);
   
   const chatBoxRef = useRef(null);
@@ -63,6 +65,30 @@ export default function DrawGuessPage({ user }) {
       } else setIsTimerActive(false);
     }
   });
+
+// ✨ 一鍵加入：你畫我猜專用版本 (不需要傳入 nickname)
+  useEffect(() => {
+    if (location.state?.autoJoinRoomId && !roomId) {
+      const targetId = location.state.autoJoinRoomId;
+      
+      autoJoinInterval.current = setInterval(() => {
+        joinRoom(targetId); // 🎨 這裡直接呼叫，不傳 nickname
+      }, 300);
+
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.state, navigate, location.pathname, joinRoom, roomId]);
+
+  useEffect(() => {
+    if (roomId && autoJoinInterval.current) {
+      clearInterval(autoJoinInterval.current);
+      autoJoinInterval.current = null;
+    }
+  }, [roomId]);
+
+  useEffect(() => {
+    return () => { if (autoJoinInterval.current) clearInterval(autoJoinInterval.current); };
+  }, []);
 
   useEffect(() => {
     if (chatBoxRef.current) chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
