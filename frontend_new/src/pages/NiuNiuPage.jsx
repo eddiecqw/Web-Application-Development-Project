@@ -92,7 +92,7 @@ export default function NiuNiuPage({ user }) {
   useEffect(() => {
     return () => { if (autoJoinInterval.current) clearInterval(autoJoinInterval.current); };
   }, []);
-  
+
   const handleSendEmoji = (emoji) => { sendEmoji(emoji); setShowEmojiPicker(false); };
 
   const [selectedIndices, setSelectedIndices] = useState([]);
@@ -207,17 +207,16 @@ export default function NiuNiuPage({ user }) {
   // ✨ 調整卡牌尺寸適應手機
   const renderCard = (card, idx, isSelectable = false, isSelected = false, isHidden = false) => {
     const cardStyle = {
-      width: '45px', height: '65px', margin: '0 -5px', borderRadius: '4px', zIndex: idx, position: 'relative',
+      width: '55px', height: 'px', margin: '0 -5px', borderRadius: '4px', zIndex: idx, position: 'relative',
       boxShadow: isSelected ? '0 0 10px rgba(255,215,0,0.8)' : '1px 1px 4px rgba(0,0,0,0.4)',
       transform: isSelected ? 'translateY(-10px)' : 'translateY(0)',
       border: isSelected ? '2px solid #ffd700' : 'none', transition: 'all 0.2s ease', userSelect: 'none'
     };
     if (isHidden || !card) return <div key={idx} style={{ ...cardStyle, background: 'repeating-linear-gradient(45deg, #0d47a1, #0d47a1 8px, #1976d2 8px, #1976d2 16px)', border: '1px solid white' }} />;
     return (
-      <div key={idx} onClick={() => isSelectable && toggleCardSelection(idx)} style={{ ...cardStyle, backgroundColor: 'white', color: card.color === 'red' ? '#d32f2f' : '#212121', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '1rem', cursor: isSelectable ? 'pointer' : 'default', border: isSelected ? '2px solid #ffd700' : '1px solid #ccc' }}>
+      <div key={idx} onClick={() => isSelectable && toggleCardSelection(idx)} style={{ ...cardStyle, backgroundColor: 'white', color: card.color === 'red' ? '#d32f2f' : '#212121', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', padding: '3px 4px', fontWeight: 'bold', fontSize: '1rem', cursor: isSelectable ? 'pointer' : 'default', border: isSelected ? '2px solid #ffd700' : '1px solid #ccc' }}>
         <div style={{ lineHeight: '1' }}>{card.rank}</div>
-        <div style={{ fontSize: '1.2rem', lineHeight: '1' }}>{card.suit}</div>
-      </div>
+        <div style={{ fontSize: '1.2rem', lineHeight: '1', marginTop: '-2px' }}>{card.suit}</div>      </div>
     );
   };
 

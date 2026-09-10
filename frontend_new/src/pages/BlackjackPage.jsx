@@ -156,9 +156,9 @@ export default function BlackjackPage({ user }) {
     if (!card || card.isHidden) return <div key={idx} style={{ ...cardStyle, background: 'repeating-linear-gradient(45deg, #0d47a1, #0d47a1 8px, #1976d2 8px, #1976d2 16px)', border: '1px solid white' }} />;
     
     return (
-      <div key={idx} style={{ ...cardStyle, backgroundColor: 'white', color: card.color === 'red' ? '#d32f2f' : '#212121', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '1rem', border: '1px solid #ccc' }}>
+      <div key={idx} style={{ ...cardStyle, backgroundColor: 'white', color: card.color === 'red' ? '#d32f2f' : '#212121', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', padding: '3px 4px', fontWeight: 'bold', fontSize: '1rem', border: '1px solid #ccc' }}>
         <div style={{ lineHeight: '1' }}>{card.rank}</div>
-        <div style={{ fontSize: '1.2rem', lineHeight: '1' }}>{card.suit}</div>
+        <div style={{ fontSize: '1.2rem', lineHeight: '1', marginTop: '-2px' }}>{card.suit}</div>
       </div>
     );
   };
