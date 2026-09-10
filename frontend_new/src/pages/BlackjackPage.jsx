@@ -1,12 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import useBlackjackSocket from '../hooks/useBlackjackSocket';
 import BlackjackLobby from '../components/Game/BlackjackLobby';
 
 export default function BlackjackPage({ user }) {
+  // ✨ React Hook 規則：所有原生的 Hook 都放在組件的最上方
   const navigate = useNavigate();
+  const location = useLocation(); 
+  const autoJoinInterval = useRef(null); // 用來存放自動重試的計時器
+
   const username = user.email;
-  
   const baseWsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:53840/ws';
   const wsUrl = `${baseWsUrl}?username=${encodeURIComponent(username)}`;
 
@@ -41,6 +44,9 @@ export default function BlackjackPage({ user }) {
     return () => clearInterval(interval);
   }, []);
 
+  // ==========================================
+  // 🔌 1. 建立 Socket 連線並解構出 roomId 與操作函數
+  // ==========================================
   const {
     createRoom, joinRoom, leaveRoom, sendEmoji, startGame, hit, stand,
     gameState: { roomId, roomData }
@@ -51,6 +57,43 @@ export default function BlackjackPage({ user }) {
     }
   });
 
+  // ==========================================
+  // 🚀 2. 一鍵加入核心邏輯 (必須放在 roomId 定義之後)
+  // ==========================================
+  useEffect(() => {
+    // 檢查：如果路由帶有 autoJoinRoomId 且目前還沒進入房間
+    if (location.state?.autoJoinRoomId && !roomId) {
+      const targetId = location.state.autoJoinRoomId;
+      const nickname = user.email.split('@')[0];
+      
+      // 每 300 毫秒嘗試敲一次門，確保 WebSocket 已經打開
+      autoJoinInterval.current = setInterval(() => {
+        joinRoom(targetId, nickname);
+      }, 300);
+
+      // 替換掉歷史紀錄，這樣玩家按 F5 就不會重複觸發自動加入
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.state, navigate, location.pathname, user.email, joinRoom, roomId]);
+
+  // 當成功取得 roomId (代表已經成功加入) 時，立刻清除重試計時器
+  useEffect(() => {
+    if (roomId && autoJoinInterval.current) {
+      clearInterval(autoJoinInterval.current);
+      autoJoinInterval.current = null;
+    }
+  }, [roomId]);
+
+  // 組件卸載時的安全清除機制
+  useEffect(() => {
+    return () => {
+      if (autoJoinInterval.current) clearInterval(autoJoinInterval.current);
+    };
+  }, []);
+
+  // ==========================================
+  // 🎮 3. 遊戲狀態邏輯
+  // ==========================================
   useEffect(() => {
     if (roomData?.status === 'playing' && roomData.turn !== lastTurn) {
       setLastTurn(roomData.turn);
@@ -98,14 +141,12 @@ export default function BlackjackPage({ user }) {
   const notEnoughPlayers = isRotateDealer && roomData?.players?.length < 2;
   const amIDealer = roomData?.dealerName === username;
 
-  // ✨ 取得正在回合玩家的暱稱
   const getTurnDisplayName = () => {
     if (roomData?.turn === 'dealer') return '莊家結算中...';
     const turnPlayer = roomData?.players?.find(p => p.name === roomData.turn);
     return turnPlayer?.nickname || roomData?.turn?.split('@')[0];
   };
 
-  // ✨ 調整卡牌尺寸適應手機
   const renderCard = (card, idx, isPlaceholder = false) => {
     const cardStyle = {
       width: '45px', height: '65px', margin: '0 -15px', borderRadius: '4px', zIndex: idx,
@@ -131,7 +172,6 @@ export default function BlackjackPage({ user }) {
   }
 
   return (
-    // ✨ 外層滿版深色，內部統一 maxWidth 450px 居中
     <div style={{ minHeight: '100vh', backgroundColor: '#121212', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '5px', color: 'white' }}>
       
       {/* 頂部 Header */}
