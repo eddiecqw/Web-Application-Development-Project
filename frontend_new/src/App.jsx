@@ -7,6 +7,7 @@ import DrawGuessPage from './pages/DrawGuessPage';
 import NiuNiuPage from './pages/NiuNiuPage';
 import BlackjackPage from './pages/BlackjackPage';
 import LoveLetterPage from './pages/LoveLetterPage';
+import Match3Page from './pages/Match3Page';
 import { Home } from './components/ChatRoom'; 
 import MapComponent from './components/MapComponent';
 import './App.css';
@@ -102,6 +103,10 @@ const App = () => {
             path="/draw-guess" 
             element={user ? <DrawGuessPage user={user} /> : <Navigate to="/login" replace />} 
           />  
+          <Route 
+            path="/match3" 
+            element={user ? <Match3Page user={user} /> : <Navigate to="/login" replace />} 
+          />
         </Routes>
       </div>
     </BrowserRouter>

@@ -493,6 +493,10 @@ export function Home({ username ,onLogout}) {
               <button onClick={() => navigate('/draw-guess')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderRadius: '16px', border: '1px solid #581c87', background: 'linear-gradient(135deg, #6b21a8 0%, #3b0764 100%)', color: '#e9d5ff', fontWeight: 'bold', fontSize: '1.05rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', width: '100%', transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.98)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>
                 <span style={{ fontSize: '1.5rem' }}>🎨</span> 你畫我猜 Draw Guess
               </button>
+
+              <button onClick={() => navigate('/match3')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderRadius: '16px', border: '1px solid #047857', background: 'linear-gradient(135deg, #065f46 0%, #022c22 100%)', color: '#6ee7b7', fontWeight: 'bold', fontSize: '1.05rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', width: '100%', transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.98)'} onMouseUp={e => e.currentTarget.style.transform='scale(1)'}>
+                <span style={{ fontSize: '1.5rem' }}>🍉</span> 夏日消消樂 Match-3
+              </button>
             </div>
           </div>
         </div>
