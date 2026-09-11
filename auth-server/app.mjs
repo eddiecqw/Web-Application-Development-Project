@@ -138,7 +138,7 @@ function broadcastSystemStatus() {
   const mapUsers = Object.values(connections).filter(conn => conn._location).length;
   
   const inGameUsers = Object.values(connections).filter(conn => 
-    conn._roomId || conn._niuniuRoomId || conn._bjRoomId || conn._llRoomId
+    conn._roomId || conn._niuniuRoomId || conn._bjRoomId || conn._llRoomId || conn._match3
   ).length;
   
   const statusMsg = JSON.stringify([{ 
@@ -388,6 +388,17 @@ wsServer.on('connection', async (connection, request) => {
         }
       
         broadcastToRoom(roomId, { type: 'GAME_GUESS_RESULT', data: { playerName: username, guess: data.guess, isCorrect, scoreUpdate, correctWord: isCorrect ? room.word : null } });
+        break;
+      }
+      // ✨ 新增：消消樂玩家狀態追蹤
+      case 'MATCH3_JOIN': {
+        connection._match3 = true;
+        broadcastSystemStatus();
+        break;
+      }
+      case 'MATCH3_LEAVE': {
+        delete connection._match3;
+        broadcastSystemStatus();
         break;
       }
     }
