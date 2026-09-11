@@ -292,13 +292,33 @@ export default function BlackjackPage({ user }) {
       </div>
 
       {/* 表情包與規則 */}
-      <div style={{ position: 'fixed', bottom: '20px', right: '15px', zIndex: 50 }}>
+      <div style={{ position: 'fixed', bottom: '15px', right: '15px', zIndex: 50 }}>
         {showEmojiPicker && (
-          <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '10px', background: 'white', padding: '8px', borderRadius: '10px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}>
-            {EMOJI_LIST.map(e => <button key={e} onClick={() => handleSendEmoji(e)} style={{ fontSize: '1.5rem', background: 'transparent', border: 'none', cursor: 'pointer' }}>{e}</button>)}
+          <div style={{ 
+            position: 'absolute', bottom: '100%', right: '-5px', 
+            marginBottom: '10px', background: 'white', padding: '10px', 
+            borderRadius: '16px', boxShadow: '0 8px 25px rgba(0,0,0,0.3)',
+            /* ✨ 核心修復：改用 Flexbox 並限制最大寬度，確保手機端不破版 */
+            display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '6px',
+            width: '260px', maxWidth: '85vw' 
+          }}>
+            {EMOJI_LIST.map(e => (
+              <button 
+                key={e} 
+                onClick={() => handleSendEmoji(e)} 
+                style={{ 
+                  fontSize: '1.6rem', background: 'transparent', border: 'none', 
+                  cursor: 'pointer', padding: '4px', transition: 'transform 0.1s' 
+                }}
+                onMouseDown={e => e.currentTarget.style.transform = 'scale(0.8)'}
+                onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                {e}
+              </button>
+            ))}
           </div>
         )}
-        <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ width: '50px', height: '50px', borderRadius: '25px', background: '#ff9800', color: 'white', border: 'none', fontSize: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>😀</button>
+        <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ width: '50px', height: '50px', borderRadius: '25px', background: '#ff9800', color: 'white', border: 'none', fontSize: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', cursor: 'pointer' }}>😀</button>
       </div>
 
       {showRules && (

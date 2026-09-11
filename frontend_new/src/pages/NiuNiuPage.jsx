@@ -207,16 +207,47 @@ export default function NiuNiuPage({ user }) {
   // ✨ 調整卡牌尺寸適應手機
   const renderCard = (card, idx, isSelectable = false, isSelected = false, isHidden = false) => {
     const cardStyle = {
-      width: '55px', height: 'px', margin: '0 -5px', borderRadius: '4px', zIndex: idx, position: 'relative',
-      boxShadow: isSelected ? '0 0 10px rgba(255,215,0,0.8)' : '1px 1px 4px rgba(0,0,0,0.4)',
-      transform: isSelected ? 'translateY(-10px)' : 'translateY(0)',
-      border: isSelected ? '2px solid #ffd700' : 'none', transition: 'all 0.2s ease', userSelect: 'none'
+      width: '55px',        // 微調寬度
+      height: '66px',       // 🐛 修復了原本 height: 'px' 的致命錯誤
+      margin: '0 -3px',     // 完美的微重疊間距：5張牌總寬約 196px，確保對手網格絕對不破版
+      borderRadius: '6px', 
+      zIndex: idx, 
+      position: 'relative',
+      boxShadow: isSelected ? '0 0 12px rgba(255,215,0,0.9)' : '2px 2px 5px rgba(0,0,0,0.25)',
+      transform: isSelected ? 'translateY(-12px)' : 'translateY(0)',
+      border: isSelected ? '2px solid #ffd700' : 'none', 
+      transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)', // 加入 Q 彈的物理動畫曲線
+      userSelect: 'none'
     };
-    if (isHidden || !card) return <div key={idx} style={{ ...cardStyle, background: 'repeating-linear-gradient(45deg, #0d47a1, #0d47a1 8px, #1976d2 8px, #1976d2 16px)', border: '1px solid white' }} />;
+
+    // 卡背樣式
+    if (isHidden || !card) return (
+      <div key={idx} style={{ ...cardStyle, background: 'repeating-linear-gradient(45deg, #0d47a1, #0d47a1 8px, #1976d2 8px, #1976d2 16px)', border: '2px solid rgba(255,255,255,0.8)' }} />
+    );
+
+    // 卡面樣式
     return (
-      <div key={idx} onClick={() => isSelectable && toggleCardSelection(idx)} style={{ ...cardStyle, backgroundColor: 'white', color: card.color === 'red' ? '#d32f2f' : '#212121', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', padding: '3px 4px', fontWeight: 'bold', fontSize: '1rem', cursor: isSelectable ? 'pointer' : 'default', border: isSelected ? '2px solid #ffd700' : '1px solid #ccc' }}>
+      <div 
+        key={idx} 
+        onClick={() => isSelectable && toggleCardSelection(idx)} 
+        style={{ 
+          ...cardStyle, 
+          backgroundColor: 'white', 
+          color: card.color === 'red' ? '#d32f2f' : '#212121', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'flex-start', 
+          alignItems: 'flex-start', 
+          padding: '4px 5px', // 增加內邊距，讓靠左上的數字不貼死邊緣
+          fontWeight: '900', 
+          fontSize: '1.1rem', 
+          cursor: isSelectable ? 'pointer' : 'default', 
+          border: isSelected ? '2px solid #ffd700' : '1px solid #cbd5e1' 
+        }}
+      >
         <div style={{ lineHeight: '1' }}>{card.rank}</div>
-        <div style={{ fontSize: '1.2rem', lineHeight: '1', marginTop: '-2px' }}>{card.suit}</div>      </div>
+        <div style={{ fontSize: '1.25rem', lineHeight: '1', marginTop: '-1px' }}>{card.suit}</div>
+      </div>
     );
   };
 
@@ -323,11 +354,31 @@ export default function NiuNiuPage({ user }) {
 
       <div style={{ position: 'fixed', bottom: '15px', right: '15px', zIndex: 50 }}>
         {showEmojiPicker && (
-          <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '10px', background: 'white', padding: '8px', borderRadius: '10px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}>
-            {EMOJI_LIST.map(e => <button key={e} onClick={() => handleSendEmoji(e)} style={{ fontSize: '1.5rem', background: 'transparent', border: 'none', cursor: 'pointer' }}>{e}</button>)}
+          <div style={{ 
+            position: 'absolute', bottom: '100%', right: '-5px', 
+            marginBottom: '10px', background: 'white', padding: '10px', 
+            borderRadius: '16px', boxShadow: '0 8px 25px rgba(0,0,0,0.3)',
+            /* ✨ 核心修復：改用 Flexbox 並限制最大寬度，確保手機端不破版 */
+            display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '6px',
+            width: '260px', maxWidth: '85vw' 
+          }}>
+            {EMOJI_LIST.map(e => (
+              <button 
+                key={e} 
+                onClick={() => handleSendEmoji(e)} 
+                style={{ 
+                  fontSize: '1.6rem', background: 'transparent', border: 'none', 
+                  cursor: 'pointer', padding: '4px', transition: 'transform 0.1s' 
+                }}
+                onMouseDown={e => e.currentTarget.style.transform = 'scale(0.8)'}
+                onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                {e}
+              </button>
+            ))}
           </div>
         )}
-        <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ width: '50px', height: '50px', borderRadius: '25px', background: '#ff9800', color: 'white', border: 'none', fontSize: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>😀</button>
+        <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ width: '50px', height: '50px', borderRadius: '25px', background: '#ff9800', color: 'white', border: 'none', fontSize: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', cursor: 'pointer' }}>😀</button>
       </div>
 
       {showRules && (

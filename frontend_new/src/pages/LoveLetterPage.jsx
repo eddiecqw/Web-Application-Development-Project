@@ -605,8 +605,28 @@ export default function LoveLetterPage({ user }) {
 
       <div style={{ position: 'fixed', bottom: '25px', right: '25px', zIndex: 50 }}>
         {showEmojiPicker && (
-          <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '15px', background: 'white', padding: '10px', borderRadius: '12px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-            {EMOJI_LIST.map(e => <button key={e} onClick={() => { sendEmoji(e); setShowEmojiPicker(false); }} style={{ fontSize: '1.8rem', background: 'transparent', border: 'none', cursor: 'pointer' }}>{e}</button>)}
+          <div style={{ 
+            position: 'absolute', bottom: '100%', right: '-10px', /* 微調靠右對齊，避免貼死邊緣 */
+            marginBottom: '15px', background: 'white', padding: '12px', 
+            borderRadius: '16px', boxShadow: '0 8px 25px rgba(0,0,0,0.3)',
+            /* ✨ 核心修復：改用 Flexbox 並限制最大寬度，確保在手機上完美折行 */
+            display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px',
+            width: '260px', maxWidth: '85vw' 
+          }}>
+            {EMOJI_LIST.map(e => (
+              <button 
+                key={e} 
+                onClick={() => { sendEmoji(e); setShowEmojiPicker(false); }} 
+                style={{ 
+                  fontSize: '1.8rem', background: 'transparent', border: 'none', 
+                  cursor: 'pointer', padding: '4px', transition: 'transform 0.1s' 
+                }}
+                onMouseDown={e => e.currentTarget.style.transform = 'scale(0.8)'}
+                onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                {e}
+              </button>
+            ))}
           </div>
         )}
         <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ width: '60px', height: '60px', borderRadius: '30px', background: '#dc2626', color: 'white', border: 'none', fontSize: '2rem', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', cursor: 'pointer' }}>😀</button>
