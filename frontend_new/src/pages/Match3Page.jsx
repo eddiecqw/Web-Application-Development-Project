@@ -9,7 +9,7 @@ export default function Match3Page({ user }) {
     // ✨ 新增：初始化氣泡音效
     const popSoundRef = useRef(new Audio('/audio/bubble.mp3')); 
     useEffect(() => {
-        popSoundRef.current.volume = 0.6; // 設定一個舒適的音量
+        popSoundRef.current.volume = 0.7; // 設定一個舒適的音量
     }, []);
 
     // ✨ 新增：BGM 狀態與控制邏輯
@@ -19,7 +19,7 @@ export default function Match3Page({ user }) {
     useEffect(() => {
         const audio = bgmRef.current;
         audio.loop = true;
-        audio.volume = 0.4; // 音量設為 0.3，避免蓋過清脆的氣泡消除音效
+        audio.volume = 0.6; //設定舒適的音量
         return () => {
             audio.pause();
             audio.currentTime = 0;
