@@ -2,6 +2,33 @@ import React, { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import useWebSocket from 'react-use-websocket';
 import { Link, useNavigate } from "react-router-dom";
 
+const formatMessageDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const today = new Date();
+  
+  // 清除時間，只比較「天數」差異
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const diffTime = todayStart - dateStart;
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return '今天';
+  if (diffDays === 1) return '昨天';
+  if (diffDays >= 2 && diffDays < 7) {
+    const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    return days[date.getDay()];
+  }
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+};
+
+// ✨ 新增：將時間轉換為 HH:MM
+const formatMessageTime = (dateString) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
 export function Home({ username ,onLogout}) {
   const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:53840/ws';
   const navigate = useNavigate();
@@ -217,6 +244,16 @@ export function Home({ username ,onLogout}) {
     return true;
   });
 
+  const groupedMessages = [];
+  filteredMessages.forEach(msg => {
+    const dateStr = formatMessageDate(msg.timestamp);
+    // 如果是第一則訊息，或是遇到了新的一天，就建立一個新群組
+    if (groupedMessages.length === 0 || groupedMessages[groupedMessages.length - 1].date !== dateStr) {
+      groupedMessages.push({ date: dateStr, messages: [] });
+    }
+    groupedMessages[groupedMessages.length - 1].messages.push(msg);
+  });
+
   return (
     <div className="chat-container">
       <div className="background-blur" />
@@ -234,7 +271,28 @@ export function Home({ username ,onLogout}) {
             0% { opacity: 0; transform: scale(0.95) translateY(10px); }
             100% { opacity: 1; transform: scale(1) translateY(0); }
           }
+            /* ✨ 新增：吸頂式日期標籤樣式 */
+          .sticky-date-header {
+            position: sticky;
+            top: 10px;
+            z-index: 20;
+            display: flex;
+            justify-content: center;
+            margin: 15px 0;
+            pointer-events: none; /* 避免擋住使用者點擊底下的訊息 */
+          }
+          .sticky-date-badge {
+            background: rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(5px);
+            color: #555;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+          }
         `}
+        
       </style>
 
       <div className="content-wrapper" style={{ position: 'relative' }}>
@@ -345,66 +403,88 @@ export function Home({ username ,onLogout}) {
               </button>
             )}
 
-            {filteredMessages.map((msg, index) => {
-              const isOwnMessage = msg.sender === username;
-              const isGuest = /^guest_/i.test(msg.sender) || msg.isGuest;
-              
-              if (msg.type === 'system') {
-                return (
-                  <div key={index} style={{ display: 'flex', justifyContent: 'center', width: '100%', margin: '5px 0' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(0,0,0,0.08)', padding: '6px 14px', borderRadius: '20px', fontSize: '0.85rem', color: '#666', fontWeight: 'bold' }}>
-                      <span>🔔 {msg.content}</span>
-                      
-                      {/* ✨ 新增：如果廣播帶有房間屬性，渲染一鍵加入按鈕 */}
-                      {msg.gameRoomId && msg.gameType && (
-                        <button 
-                          onClick={() => navigate(`/${msg.gameType}`, { state: { autoJoinRoomId: msg.gameRoomId } })}
-                          style={{ 
-                            padding: '4px 10px', background: 'linear-gradient(to right, #3b82f6, #2563eb)', 
-                            color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', 
-                            fontSize: '0.75rem', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'transform 0.1s' 
-                          }}
-                          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
-                          onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-                        >
-                          🚀 一鍵加入
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              }
-
-              return (
-                <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: isOwnMessage ? 'flex-end' : 'flex-start', width: '100%', opacity: isGuest ? 0.85 : 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: '#888', marginBottom: '4px', padding: '0 5px' }}>
-                    {!isOwnMessage && renderBadge(msg)}
-                    <span>{msg.sender.split('@')[0]}</span>
-                    {isOwnMessage && <span style={{ marginLeft: '5px' }}>{renderBadge(msg)}</span>}
-                  </div>
-                  
-                  <div style={{
-                    background: isOwnMessage ? '#95ec69' : '#f4f4f5', padding: '10px 15px',
-                    borderRadius: isOwnMessage ? '15px 4px 15px 15px' : '4px 15px 15px 15px', 
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.05)', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '5px'
-                  }}>
-                    {msg.replyTo && (
-                      <div style={{ background: isOwnMessage ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.04)', borderLeft: `3px solid ${isOwnMessage ? '#5f9e40' : '#ccc'}`, padding: '6px 8px', borderRadius: '4px', fontSize: '0.8rem', color: isOwnMessage ? '#4a7a32' : '#666', marginBottom: '4px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>
-                        <strong style={{ opacity: 0.8 }}>{msg.replyTo.sender.split('@')[0]}</strong><br/>
-                        {msg.replyTo.content}
-                      </div>
-                    )}
-
-                    <div style={{ fontSize: '1rem', color: '#222', wordBreak: 'break-word' }}>{renderContent(msg)}</div>
-                    
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px', gap: '15px' }}>
-                      <button onClick={() => setReplyingTo(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.75rem', fontWeight: 'bold', color: isOwnMessage ? 'rgba(0,0,0,0.3)' : '#aaa' }}>↩ 回覆</button>
-                      <span style={{ fontSize: '0.7rem', color: isOwnMessage ? '#5f9e40' : '#999', whiteSpace: 'nowrap' }}>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                  </div>
+            {groupedMessages.map((group, groupIndex) => (
+              <div key={`date-group-${groupIndex}`} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                
+                {/* 📌 該日期專屬的吸頂氣泡（有了專屬父容器，就不會再重疊了！） */}
+                <div className="sticky-date-header">
+                  <div className="sticky-date-badge">{group.date}</div>
                 </div>
-              );
-            })}
+
+                {/* 💬 第二層：渲染這一天底下的所有訊息 */}
+                {group.messages.map((msg, index) => {
+                  const isOwnMessage = msg.sender === username;
+                  const isGuest = /^guest_/i.test(msg.sender) || msg.isGuest;
+                  
+                  // 利用 group.messages 來精準抓取上一則訊息，判斷緊湊模式
+                  const prevMsg = index > 0 ? group.messages[index - 1] : null;
+                  const msgTimeStr = formatMessageTime(msg.timestamp);
+                  const prevTimeStr = prevMsg ? formatMessageTime(prevMsg.timestamp) : null;
+                  
+                  // 緊湊模式判斷：同一人、同一分鐘、且非系統廣播
+                  const isCompact = prevMsg && prevMsg.sender === msg.sender && msgTimeStr === prevTimeStr && msg.type !== 'system';
+
+                  // 📢 系統廣播訊息
+                  if (msg.type === 'system') {
+                    return (
+                      <div key={msg.id || index} style={{ display: 'flex', justifyContent: 'center', width: '100%', margin: '5px 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(0,0,0,0.08)', padding: '6px 14px', borderRadius: '20px', fontSize: '0.85rem', color: '#666', fontWeight: 'bold' }}>
+                          <span>🔔 {msg.content}</span>
+                          {msg.gameRoomId && msg.gameType && (
+                            <button 
+                              onClick={() => navigate(`/${msg.gameType}`, { state: { autoJoinRoomId: msg.gameRoomId } })}
+                              style={{ padding: '4px 10px', background: 'linear-gradient(to right, #3b82f6, #2563eb)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '0.75rem', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+                            >
+                              🚀 一鍵加入
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // 💬 一般玩家訊息
+                  return (
+                    <div key={msg.id || index} style={{ 
+                      display: 'flex', flexDirection: 'column', 
+                      alignItems: isOwnMessage ? 'flex-end' : 'flex-start', 
+                      width: '100%', opacity: isGuest ? 0.85 : 1,
+                      marginTop: isCompact ? '2px' : '12px' 
+                    }}>
+                      
+                      {!isCompact && (
+                        <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: '#888', marginBottom: '4px', padding: '0 5px' }}>
+                          {!isOwnMessage && renderBadge(msg)}
+                          <span>{msg.sender.split('@')[0]}</span>
+                          {isOwnMessage && <span style={{ marginLeft: '5px' }}>{renderBadge(msg)}</span>}
+                        </div>
+                      )}
+                      
+                      <div style={{
+                        background: isOwnMessage ? '#95ec69' : '#f4f4f5', padding: '10px 15px',
+                        borderRadius: isOwnMessage ? '15px 4px 15px 15px' : '4px 15px 15px 15px', 
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.05)', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '5px'
+                      }}>
+                        
+                        {msg.replyTo && (
+                          <div style={{ background: isOwnMessage ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.04)', borderLeft: `3px solid ${isOwnMessage ? '#5f9e40' : '#ccc'}`, padding: '6px 8px', borderRadius: '4px', fontSize: '0.8rem', color: isOwnMessage ? '#4a7a32' : '#666', marginBottom: '4px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>
+                            <strong style={{ opacity: 0.8 }}>{msg.replyTo.sender.split('@')[0]}</strong><br/>
+                            {msg.replyTo.content}
+                          </div>
+                        )}
+
+                        <div style={{ fontSize: '1rem', color: '#222', wordBreak: 'break-word' }}>{renderContent(msg)}</div>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px', gap: '15px' }}>
+                          <button onClick={() => setReplyingTo(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.75rem', fontWeight: 'bold', color: isOwnMessage ? 'rgba(0,0,0,0.3)' : '#aaa' }}>↩ 回覆</button>
+                          {!isCompact && <span style={{ fontSize: '0.7rem', color: isOwnMessage ? '#5f9e40' : '#999', whiteSpace: 'nowrap' }}>{msgTimeStr}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
             <div ref={messagesEndRef} />
           </div>
 
