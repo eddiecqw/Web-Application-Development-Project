@@ -2,6 +2,14 @@ import React, { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import useWebSocket from 'react-use-websocket';
 import { Link, useNavigate } from "react-router-dom";
 
+// 管理員/內測人員名單 (請填入你們註冊時使用的完整 Email)
+const ADMIN_USERS = [
+  'eddiecqw@gmail.com', 
+  'admin@test.com',
+  'mhj2058608753@gmail.com'
+  // 在這裡隨時增減你的內測帳號...
+];
+
 const formatMessageDate = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString);
@@ -23,7 +31,7 @@ const formatMessageDate = (dateString) => {
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
 };
 
-// ✨ 新增：將時間轉換為 HH:MM
+// 將時間轉換為 HH:MM
 const formatMessageTime = (dateString) => {
   if (!dateString) return '';
   return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -45,7 +53,7 @@ export function Home({ username ,onLogout}) {
   const isGuestUser = /^guest_/i.test(username);
   
   const [showGuestModal, setShowGuestPopup] = useState(false);
-  // ✨ 新增：控制遊戲中心彈窗的狀態
+  // 控制遊戲中心彈窗的狀態
   const [showGameCenter, setShowGameCenter] = useState(false);
 
   const [activeTab, setActiveTab] = useState('world'); 
@@ -232,9 +240,33 @@ export function Home({ username ,onLogout}) {
   };
 
   const renderBadge = (msg) => {
-    if (msg.type === 'system' || msg.sender === 'System') return <span style={{ background: '#dc2626', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', marginRight: '5px' }}>📢 系統</span>;
+    // 系統廣播
+    if (msg.type === 'system' || msg.sender === 'System') {
+      return <span style={{ background: '#dc2626', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', marginRight: '5px' }}>📢 系統</span>;
+    }
+
+    // 判斷是否為管理員 (優先級高於一般會員)
+    if (ADMIN_USERS.includes(msg.sender)) {
+      return (
+        <span style={{ 
+          background: 'linear-gradient(135deg, #6b21a8 0%, #c026d3 100%)', // 尊爵紫金漸層
+          color: '#fff', padding: '2px 6px', borderRadius: '4px', 
+          fontSize: '0.7rem', fontWeight: 'bold', marginRight: '5px', 
+          boxShadow: '0 2px 4px rgba(192, 38, 211, 0.4)',
+          border: '1px solid #f0abfc'
+        }}>
+          👑 管理員
+        </span>
+      );
+    }
+
+    // 3. 遊客判斷
     const isGuest = /^guest_/i.test(msg.sender) || msg.isGuest;
-    if (isGuest) return <span style={{ background: '#4b5563', color: '#d1d5db', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', marginRight: '5px' }}>👤 遊客</span>;
+    if (isGuest) {
+      return <span style={{ background: '#4b5563', color: '#d1d5db', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', marginRight: '5px' }}>👤 遊客</span>;
+    }
+
+    // 4. 一般會員
     return <span style={{ background: 'linear-gradient(45deg, #f59e0b, #d97706)', color: '#fffbeb', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', marginRight: '5px', boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>⭐ 會員</span>;
   };
 
@@ -271,7 +303,7 @@ export function Home({ username ,onLogout}) {
             0% { opacity: 0; transform: scale(0.95) translateY(10px); }
             100% { opacity: 1; transform: scale(1) translateY(0); }
           }
-            /* ✨ 新增：吸頂式日期標籤樣式 */
+            /* 吸頂式日期標籤樣式 */
           .sticky-date-header {
             position: sticky;
             top: 10px;
