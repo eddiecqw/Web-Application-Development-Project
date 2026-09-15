@@ -1,6 +1,28 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// 定義四個時段的精美海灘背景
+const getBeachBackgroundByTime = () => {
+    const hour = new Date().getHours();
+    //const hour = 18;
+    if (hour >= 5 && hour < 10) {
+        // 🌅 清晨 (05:00 - 09:59)：日出海灘，色調柔和
+        return `url('/image/match3/bg_morning.jpg')`;
+    } 
+    else if (hour >= 10 && hour < 16) {
+        // ☀️ 白天 (10:00 - 15:59)：烈日高照，你原本的經典夏日海灘
+        return `url('/image/match3/bg_midday.jpg')`;
+    } 
+    else if (hour >= 16 && hour < 19) {
+        // 🌇 傍晚 (16:00 - 18:59)：美麗的橘紅落日
+        return `url('/image/match3/bg_sunset.jpg')`;
+    } 
+    else {
+        // 🌃 夜晚 (19:00 - 04:59)：星空下的靜謐海灘
+        return `url('/image/match3/bg_night.jpg')`;
+    }
+};
+
 export default function Match3Page({ user }) {
     const navigate = useNavigate();
     const boardRef = useRef(null);
@@ -35,6 +57,44 @@ export default function Match3Page({ user }) {
         }
         setIsBgmPlaying(!isBgmPlaying);
     };
+
+    // ✨ 新增：背景狀態與時間監控
+    const [bgImage, setBgImage] = useState(getBeachBackgroundByTime());
+    useEffect(() => {
+        const imagesToPreload = [
+            '/image/match3/bg_morning.jpg',
+            '/image/match3/bg_midday.jpg',
+            '/image/match3/bg_sunset.jpg',
+            '/image/match3/bg_night.jpg'
+        ];
+        imagesToPreload.forEach(src => {
+            const img = new Image();
+            img.src = src;
+        });
+    }, []);
+    useEffect(() => {
+        const checkAndUpdateBackground = () => {
+            const currentBg = getBeachBackgroundByTime();
+            if (bgImage !== currentBg) {
+                setBgImage(currentBg);
+            }
+        };
+
+        // 1. 每 60 秒例行檢查
+        const interval = setInterval(checkAndUpdateBackground, 60000);
+        
+        // 2. 當使用者切換分頁或視窗再回來時，立刻檢查 (方便測試與實際體驗)
+        window.addEventListener('focus', checkAndUpdateBackground);
+        window.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') checkAndUpdateBackground();
+        });
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('focus', checkAndUpdateBackground);
+            window.removeEventListener('visibilitychange', checkAndUpdateBackground);
+        };
+    }, [bgImage]);
 
     // 📡 WebSocket：通知伺服器我正在玩消消樂
     useEffect(() => {
@@ -159,6 +219,42 @@ export default function Match3Page({ user }) {
             }
             setScore(internalScore); 
         }
+        // ✨ 新增：自動存檔函數
+        function saveGame() {
+            const gameState = { board, score: internalScore };
+            localStorage.setItem('match3_save_data', JSON.stringify(gameState));
+        }
+
+        // ✨ 修改：初始化時先檢查有沒有存檔
+        function initBoard() {
+            const savedData = localStorage.getItem('match3_save_data');
+            if (savedData) {
+                try {
+                    const parsed = JSON.parse(savedData);
+                    board = parsed.board;
+                    internalScore = parsed.score;
+                    return; // 如果有存檔，載入後直接返回
+                } catch (e) {
+                    console.error("存檔損毀，重新開始");
+                }
+            }
+
+            // 如果沒有存檔，才執行原本的隨機生成
+            for (let r = 0; r < ROWS; r++) {
+                board[r] = [];
+                for (let c = 0; c < COLS; c++) {
+                    let randomFruit;
+                    do {
+                        randomFruit = FRUITS[Math.floor(Math.random() * FRUITS.length)];
+                    } while (
+                        (r >= 2 && board[r-1][c] === randomFruit && board[r-2][c] === randomFruit) ||
+                        (c >= 2 && board[r][c-1] === randomFruit && board[r][c-2] === randomFruit)
+                    );
+                    board[r][c] = randomFruit;
+                }
+            }
+            saveGame(); // 生成新開局後，存檔一次
+        }
 
         async function handleCellClick(r, c) {
             if (isAnimating) return;
@@ -194,6 +290,7 @@ export default function Match3Page({ user }) {
                     // 退回原位
                     [board[r1][c1], board[r][c]] = [board[r][c], board[r1][c1]];
                     renderBoard();
+                    saveGame();
                 }
                 isAnimating = false;
             } else {
@@ -266,6 +363,7 @@ export default function Match3Page({ user }) {
                 matches = findMatches();
                 if (matches.length > 0) await sleep(200);
             }
+            saveGame();
         }
 
         function sleep(ms) {
@@ -278,7 +376,9 @@ export default function Match3Page({ user }) {
 
     return (
         <div style={{
-            background: `url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80') center/cover no-repeat fixed`,
+            // 套用動態計算出來的背景 URL
+            background: `${bgImage} center/cover no-repeat fixed`,
+            transition: 'background 1.5s ease-in-out', // 讓跨時段切換時不那麼突兀
             fontFamily: "'Nunito', 'Noto Color Emoji', sans-serif",
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             minHeight: '100vh', margin: 0, padding: '20px 10px', color: '#334155', position: 'relative'
@@ -391,7 +491,14 @@ export default function Match3Page({ user }) {
             <div className="title-wrapper">
                 <div className="title-glass">
                     <div>🍉 夏日消消樂</div>
-                    <div className="endless-badge">∞ 無盡模式</div>
+                    <div className="endless-badge" style={{ cursor: 'pointer' }} onClick={() => {
+                        if (window.confirm('要清除目前進度，重新開始新局嗎？')) {
+                            localStorage.removeItem('match3_save_data');
+                            window.location.reload();
+                        }
+                    }}>
+                        ∞ 無盡模式 🔄
+                    </div>
                 </div>
             </div>
 
