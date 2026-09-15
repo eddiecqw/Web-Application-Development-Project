@@ -3,6 +3,7 @@ import { WebSocketServer } from 'ws';
 import { handleNiuNiuMessage, niuniuRooms, cleanupNiuNiuConnection } from './niuniuHandler.mjs';
 import { handleBlackjackMessage, blackjackRooms, cleanupBlackjackConnection } from './blackjackHandler.mjs';
 import { handleLoveLetterMessage, loveletterRooms, cleanupLoveLetterConnection } from './loveletterHandler.mjs';
+import { handleMatch3Message, match3Rooms, cleanupMatch3Connection } from './match3Handler.mjs';
 import cors from 'cors';
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
@@ -133,6 +134,15 @@ app.get('/api/loveletter-rooms', (req, res) => {
   }
 });
 
+app.get('/api/match3-rooms', (req, res) => {
+  try {
+    const rooms = Object.values(match3Rooms).map(room => ({ 
+      roomId: room.id, playerCount: room.players.length, status: room.status, owner: room.owner 
+    }));
+    res.json({ success: true, rooms });
+  } catch (error) { res.status(500).json({ success: false }); }
+});
+
 function broadcastSystemStatus() {
   const totalOnline = Object.keys(connections).length;
   const mapUsers = Object.values(connections).filter(conn => conn._location).length;
@@ -229,7 +239,18 @@ wsServer.on('connection', async (connection, request) => {
       if (['LL_CREATE_ROOM', 'LL_JOIN_ROOM', 'LL_LEAVE_ROOM'].includes(type)) setTimeout(broadcastSystemStatus, 50);
       return; 
     }
-
+    if (type && type.startsWith('M3_')) {
+      data.username = connection._username || data.username; 
+      const callbacks = {
+        onRoomCreated: async (newRoomId, gameName) => {
+          const systemMessage = { sender: 'System', content: `🍉 ${gameName} 房間 [${newRoomId}] 已開放，快來挑戰高分！`, timestamp: new Date(), type: 'system', channel: 'system', gameType: 'match3', gameRoomId: newRoomId };
+          Object.values(connections).forEach((conn) => { if(conn.readyState === 1) conn.send(JSON.stringify([systemMessage])); });
+        }
+      };
+      handleMatch3Message(connection, type, data, wsServer, callbacks);
+      if (['M3_CREATE_ROOM', 'M3_JOIN_ROOM', 'M3_LEAVE_ROOM'].includes(type)) setTimeout(broadcastSystemStatus, 50);
+      return; 
+    }
     switch (type) {
       
       case 'LOAD_MORE_MESSAGES': {
@@ -409,6 +430,7 @@ wsServer.on('connection', async (connection, request) => {
       cleanupNiuNiuConnection(connection._username, connection._niuniuRoomId, wsServer);
       cleanupBlackjackConnection(connection._username, connection._bjRoomId, wsServer);
       cleanupLoveLetterConnection(connection._username, connection._llRoomId, wsServer);
+      cleanupMatch3Connection(connection._username, connection._m3RoomId, wsServer);
     }
 
     if (connection._location) {
