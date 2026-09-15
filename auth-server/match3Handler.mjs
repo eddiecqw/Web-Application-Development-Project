@@ -37,7 +37,11 @@ export function handleMatch3Message(connection, type, data, wsServer, callbacks)
       
       const existingPlayer = room.players.find(p => p.name === username);
       if (!existingPlayer) {
-        room.players.push({ name: username, nickname: data.nickname || username.split('@')[0], score: 0, board: null });
+        // 全新玩家，加入房間
+        room.players.push({ name: username, nickname: data.nickname || username.split('@')[0], score: 0, board: null, isOnline: true });
+      } else {
+        // 老玩家斷線重連，標記為上線 (保留之前的分數與排版)
+        existingPlayer.isOnline = true;
       }
       
       connection._m3RoomId = roomId;
@@ -60,7 +64,17 @@ export function handleMatch3Message(connection, type, data, wsServer, callbacks)
     }
 
     case 'M3_LEAVE_ROOM': {
-      cleanupMatch3Connection(username, roomId, wsServer);
+      const room = match3Rooms[roomId];
+      if (room) {
+          // 玩家主動點擊「離開房間」，徹底刪除他的資料
+          room.players = room.players.filter(p => p.name !== username);
+          if (room.players.length === 0) {
+              delete match3Rooms[roomId];
+          } else if (room.owner === username) {
+              room.owner = room.players[0].name; // 轉移房主
+          }
+          broadcastToRoom(wsServer, roomId);
+      }
       delete connection._m3RoomId;
       break;
     }
@@ -70,14 +84,21 @@ export function handleMatch3Message(connection, type, data, wsServer, callbacks)
 export function cleanupMatch3Connection(username, roomId, wsServer) {
   if (!roomId || !match3Rooms[roomId]) return;
   const room = match3Rooms[roomId];
-  room.players = room.players.filter(p => p.name !== username);
+  const player = room.players.find(p => p.name === username);
   
-  if (room.players.length === 0) {
-    delete match3Rooms[roomId]; // 沒人就解散房間
-  } else if (room.owner === username) {
-    room.owner = room.players[0].name; // 轉移房主
-    broadcastToRoom(wsServer, roomId);
+  if (player) {
+      // 意外斷線 (如 F5 刷新、關閉網頁)，只標記離線，保留心血分數！
+      player.isOnline = false; 
+  }
+
+  // 只有當「所有玩家」都離線時，才解散房間回收記憶體
+  if (room.players.every(p => !p.isOnline)) {
+      delete match3Rooms[roomId]; 
   } else {
-    broadcastToRoom(wsServer, roomId);
+      if (room.owner === username) {
+          const nextOwner = room.players.find(p => p.isOnline);
+          if (nextOwner) room.owner = nextOwner.name;
+      }
+      broadcastToRoom(wsServer, roomId);
   }
 }
