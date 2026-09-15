@@ -148,7 +148,7 @@ function broadcastSystemStatus() {
   const mapUsers = Object.values(connections).filter(conn => conn._location).length;
   
   const inGameUsers = Object.values(connections).filter(conn => 
-    conn._roomId || conn._niuniuRoomId || conn._bjRoomId || conn._llRoomId || conn._match3
+    conn._roomId || conn._niuniuRoomId || conn._bjRoomId || conn._llRoomId || conn._match3 || conn._m3RoomId
   ).length;
   
   const statusMsg = JSON.stringify([{ 

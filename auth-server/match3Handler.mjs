@@ -23,7 +23,7 @@ export function handleMatch3Message(connection, type, data, wsServer, callbacks)
         id: newRoomId,
         owner: username,
         status: 'playing', // 目前是無盡模式，創房即開始
-        players: [{ name: username, nickname: data.nickname || username.split('@')[0], score: 0, board: null }]
+        players: [{ name: username, nickname: data.nickname || username.split('@')[0], score: 0, board: null, isOnline: true }]
       };
       connection._m3RoomId = newRoomId;
       connection.send(JSON.stringify([{ type: 'M3_ROOM_CREATED', data: { room: match3Rooms[newRoomId] } }]));

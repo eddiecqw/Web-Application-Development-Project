@@ -496,17 +496,24 @@ export default function Match3Page({ user }) {
                     </div>
                 </div>
             )}
+            
             <div className="title-wrapper">
+                
+                {/* 顯示房間 ID 的玻璃擬態膠囊 */}
+                <div style={{
+                    background: 'rgba(255,255,255,0.85)', padding: '5px 16px', borderRadius: '20px',
+                    color: '#0f766e', fontWeight: '900', fontSize: '0.9rem', marginBottom: '10px',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.1)', border: '1px solid rgba(255,255,255,0.6)',
+                    backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', gap: '6px'
+                }}>
+                    🏠 房間 ID : <span style={{ color: '#ea580c', letterSpacing: '1px' }}>{roomId}</span>
+                </div>
+
                 <div className="title-glass">
                     <div>🍉 夏日消消樂</div>
-                    <div className="endless-badge" style={{ cursor: 'pointer' }} onClick={() => {
-                        if (window.confirm('要放棄目前分數，重新開始新局嗎？')) {
-                            // ✨ 重置房間分數與狀態
-                            syncState(null, 0);
-                            window.location.reload();
-                        }
-                    }}>
-                        ∞ 重置進度 🔄
+                    {/* 將原本的重置按鈕改成純展示的連線模式標籤，移除 onClick 與 pointer cursor */}
+                    <div className="endless-badge" style={{ cursor: 'default' }}>
+                        🎮 連線對戰模式
                     </div>
                 </div>
             </div>
