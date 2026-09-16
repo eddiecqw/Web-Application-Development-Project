@@ -5,8 +5,8 @@ import Match3Lobby from '../components/Game/Match3Lobby';
 
 // 定義四個時段的精美海灘背景
 const getBeachBackgroundByTime = () => {
-    // const hour = new Date().getHours();
-    const hour = 8;
+    const hour = new Date().getHours();
+    //const hour = 8;
     if (hour >= 5 && hour < 10) return `url('/image/match3/bg_morning.jpg')`;
     else if (hour >= 10 && hour < 16) return `url('/image/match3/bg_midday.jpg')`;
     else if (hour >= 16 && hour < 19) return `url('/image/match3/bg_sunset.jpg')`;
