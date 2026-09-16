@@ -209,6 +209,109 @@ export default function Match3Page({ user }) {
             });
         }
 
+        // async function processMatches() {
+        //     let matches = findMatches();
+            
+        //     while (matches.length > 0) {
+        //         let toDestroy = new Set();
+        //         let toMelt = new Set();
+        //         let queue = [...matches];
+        //         queue.forEach(m => toDestroy.add(`${m.r},${m.c}`));
+        //         let processed = new Set();
+
+        //         while(queue.length > 0) {
+        //             let curr = queue.shift();
+        //             let key = `${curr.r},${curr.c}`;
+        //             if (processed.has(key)) continue;
+        //             processed.add(key);
+
+        //             let r = curr.r, c = curr.c;
+        //             let triggerColor = FRUITS.includes(board[r][c]) ? board[r][c] : null;
+        //             const neighbors = [ {r: r-1, c}, {r: r+1, c}, {r, c: c-1}, {r, c: c+1} ];
+
+        //             neighbors.forEach(n => {
+        //                 if (n.r >= 0 && n.r < ROWS && n.c >= 0 && n.c < COLS) {
+        //                     let nVal = board[n.r][n.c];
+        //                     if (!nVal) return;
+        //                     let nKey = `${n.r},${n.c}`;
+
+        //                     if (nVal.startsWith('🧊') && !toDestroy.has(nKey)) {
+        //                         toMelt.add(nKey);
+        //                     }
+        //                     else if (nVal === '🥥' && !toDestroy.has(nKey)) {
+        //                         toDestroy.add(nKey); queue.push(n);
+        //                         for(let dr=-1; dr<=1; dr++) {
+        //                             for(let dc=-1; dc<=1; dc++) {
+        //                                 let rr = n.r+dr, cc = n.c+dc;
+        //                                 if (rr>=0 && rr<ROWS && cc>=0 && cc<COLS && !toDestroy.has(`${rr},${cc}`)) {
+        //                                     toDestroy.add(`${rr},${cc}`); queue.push({r: rr, c: cc});
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                     else if (nVal === '🌊' && !toDestroy.has(nKey)) {
+        //                         toDestroy.add(nKey); queue.push(n);
+        //                         for(let i=0; i<ROWS; i++) {
+        //                             if (!toDestroy.has(`${i},${n.c}`)) { toDestroy.add(`${i},${n.c}`); queue.push({r: i, c: n.c}); }
+        //                         }
+        //                         for(let i=0; i<COLS; i++) {
+        //                             if (!toDestroy.has(`${n.r},${i}`)) { toDestroy.add(`${n.r},${i}`); queue.push({r: n.r, c: i}); }
+        //                         }
+        //                     }
+        //                     else if (nVal === '🌈' && !toDestroy.has(nKey)) {
+        //                         toDestroy.add(nKey); queue.push(n);
+        //                         let targetColor = triggerColor || FRUITS[Math.floor(Math.random() * FRUITS.length)];
+        //                         for(let rr=0; rr<ROWS; rr++) {
+        //                             for(let cc=0; cc<COLS; cc++) {
+        //                                 let v = board[rr][cc];
+        //                                 if ((v === targetColor || v === `🧊${targetColor}`) && !toDestroy.has(`${rr},${cc}`)) {
+        //                                     toDestroy.add(`${rr},${cc}`); queue.push({r: rr, c: cc});
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                 }
+        //             });
+        //         }
+
+        //         internalScore += toDestroy.size * 10 + toMelt.size * 5;
+        //         setScore(internalScore);
+        //         try { popSoundRef.current.currentTime = 0; popSoundRef.current.play().catch(()=>{}); } catch(e){}
+                
+        //         // ✨ 3. 動畫狀態交給 React 控制
+        //         let newAnimStates = {};
+        //         toDestroy.forEach(k => newAnimStates[k] = 'matched');
+        //         toMelt.forEach(k => newAnimStates[k] = 'melted');
+        //         setAnimStates(newAnimStates);
+
+        //         await sleep(300);
+
+        //         toDestroy.forEach(key => { let [r, c] = key.split(',').map(Number); board[r][c] = null; });
+        //         toMelt.forEach(key => { let [r, c] = key.split(',').map(Number); board[r][c] = board[r][c].replace('🧊', ''); });
+
+        //         setAnimStates({});
+        //         renderBoard();
+
+        //         for (let c = 0; c < COLS; c++) {
+        //             let emptySlots = 0;
+        //             for (let r = ROWS - 1; r >= 0; r--) {
+        //                 if (board[r][c] === null) emptySlots++;
+        //                 else if (emptySlots > 0) { board[r + emptySlots][c] = board[r][c]; board[r][c] = null; }
+        //             }
+        //             for (let r = 0; r < emptySlots; r++) {
+        //                 board[r][c] = getRandomFruit(false);
+        //             }
+        //         }
+                
+        //         await sleep(350);
+        //         renderBoard();
+                
+        //         matches = findMatches();
+        //         if (matches.length > 0) await sleep(200);
+        //     }
+        //     saveGame();
+        // }
+        // ✨ 核心連鎖爆破演算法 (防崩潰、極速流暢版)
         async function processMatches() {
             let matches = findMatches();
             
@@ -219,6 +322,24 @@ export default function Match3Page({ user }) {
                 queue.forEach(m => toDestroy.add(`${m.r},${m.c}`));
                 let processed = new Set();
 
+                // ✨ 全新：安全觸發爆炸的輔助函數，防止冰塊被直接設為 null
+                const triggerDestroy = (r, c) => {
+                    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
+                    let key = `${r},${c}`;
+                    let v = board[r][c];
+                    if (!v) return;
+
+                    if (v.startsWith('🧊')) {
+                        toMelt.add(key); // 冰塊只會融化，充當保護盾，不往外擴散
+                    } else {
+                        if (!toDestroy.has(key)) {
+                            toDestroy.add(key);
+                            queue.push({r, c}); // 如果是特殊炸彈，推入佇列引發後續連鎖
+                        }
+                    }
+                };
+
+                // 擴散計算爆炸範圍
                 while(queue.length > 0) {
                     let curr = queue.shift();
                     let key = `${curr.r},${curr.c}`;
@@ -226,72 +347,71 @@ export default function Match3Page({ user }) {
                     processed.add(key);
 
                     let r = curr.r, c = curr.c;
-                    let triggerColor = FRUITS.includes(board[r][c]) ? board[r][c] : null;
-                    const neighbors = [ {r: r-1, c}, {r: r+1, c}, {r, c: c-1}, {r, c: c+1} ];
+                    let v = board[r][c];
+                    if (!v) continue;
 
+                    let triggerColor = FRUITS.includes(v) ? v : null;
+
+                    // 1. 融化相鄰冰塊 & 引爆相鄰炸彈
+                    const neighbors = [ {r: r-1, c}, {r: r+1, c}, {r, c: c-1}, {r, c: c+1} ];
                     neighbors.forEach(n => {
                         if (n.r >= 0 && n.r < ROWS && n.c >= 0 && n.c < COLS) {
                             let nVal = board[n.r][n.c];
-                            if (!nVal) return;
-                            let nKey = `${n.r},${n.c}`;
-
-                            if (nVal.startsWith('🧊') && !toDestroy.has(nKey)) {
-                                toMelt.add(nKey);
-                            }
-                            else if (nVal === '🥥' && !toDestroy.has(nKey)) {
-                                toDestroy.add(nKey); queue.push(n);
-                                for(let dr=-1; dr<=1; dr++) {
-                                    for(let dc=-1; dc<=1; dc++) {
-                                        let rr = n.r+dr, cc = n.c+dc;
-                                        if (rr>=0 && rr<ROWS && cc>=0 && cc<COLS && !toDestroy.has(`${rr},${cc}`)) {
-                                            toDestroy.add(`${rr},${cc}`); queue.push({r: rr, c: cc});
-                                        }
-                                    }
-                                }
-                            }
-                            else if (nVal === '🌊' && !toDestroy.has(nKey)) {
-                                toDestroy.add(nKey); queue.push(n);
-                                for(let i=0; i<ROWS; i++) {
-                                    if (!toDestroy.has(`${i},${n.c}`)) { toDestroy.add(`${i},${n.c}`); queue.push({r: i, c: n.c}); }
-                                }
-                                for(let i=0; i<COLS; i++) {
-                                    if (!toDestroy.has(`${n.r},${i}`)) { toDestroy.add(`${n.r},${i}`); queue.push({r: n.r, c: i}); }
-                                }
-                            }
-                            else if (nVal === '🌈' && !toDestroy.has(nKey)) {
-                                toDestroy.add(nKey); queue.push(n);
-                                let targetColor = triggerColor || FRUITS[Math.floor(Math.random() * FRUITS.length)];
-                                for(let rr=0; rr<ROWS; rr++) {
-                                    for(let cc=0; cc<COLS; cc++) {
-                                        let v = board[rr][cc];
-                                        if ((v === targetColor || v === `🧊${targetColor}`) && !toDestroy.has(`${rr},${cc}`)) {
-                                            toDestroy.add(`${rr},${cc}`); queue.push({r: rr, c: cc});
-                                        }
-                                    }
-                                }
+                            if (nVal && nVal.startsWith('🧊')) {
+                                toMelt.add(`${n.r},${n.c}`);
+                            } else if (nVal && ['🥥', '🌊', '🌈'].includes(nVal)) {
+                                triggerDestroy(n.r, n.c);
                             }
                         }
                     });
+
+                    // 2. 特殊炸彈效果觸發
+                    if (v === '🥥') {
+                        for(let dr=-1; dr<=1; dr++) {
+                            for(let dc=-1; dc<=1; dc++) triggerDestroy(r+dr, c+dc);
+                        }
+                    }
+                    else if (v === '🌊') {
+                        for(let i=0; i<ROWS; i++) triggerDestroy(i, c);
+                        for(let i=0; i<COLS; i++) triggerDestroy(r, i);
+                    }
+                    else if (v === '🌈') {
+                        let targetColor = triggerColor || FRUITS[Math.floor(Math.random() * FRUITS.length)];
+                        for(let rr=0; rr<ROWS; rr++) {
+                            for(let cc=0; cc<COLS; cc++) {
+                                let cellV = board[rr][cc];
+                                if (cellV === targetColor) triggerDestroy(rr, cc);
+                                else if (cellV === `🧊${targetColor}`) toMelt.add(`${rr},${cc}`);
+                            }
+                        }
+                    }
                 }
+
+                // ✨ 核心修復：確保被融化的冰塊絕對不會被當作普通水果刪除 (解決 Null 報錯與懸空破洞)
+                toMelt.forEach(key => toDestroy.delete(key));
 
                 internalScore += toDestroy.size * 10 + toMelt.size * 5;
                 setScore(internalScore);
                 try { popSoundRef.current.currentTime = 0; popSoundRef.current.play().catch(()=>{}); } catch(e){}
                 
-                // ✨ 3. 動畫狀態交給 React 控制
                 let newAnimStates = {};
                 toDestroy.forEach(k => newAnimStates[k] = 'matched');
                 toMelt.forEach(k => newAnimStates[k] = 'melted');
                 setAnimStates(newAnimStates);
 
-                await sleep(300);
+                // ✨ 優化：加快消除動畫節奏，消除延遲感 (300ms -> 150ms)
+                await sleep(150);
 
                 toDestroy.forEach(key => { let [r, c] = key.split(',').map(Number); board[r][c] = null; });
-                toMelt.forEach(key => { let [r, c] = key.split(',').map(Number); board[r][c] = board[r][c].replace('🧊', ''); });
+                toMelt.forEach(key => { 
+                    let [r, c] = key.split(',').map(Number); 
+                    if (board[r][c]) board[r][c] = board[r][c].replace('🧊', ''); 
+                });
 
                 setAnimStates({});
                 renderBoard();
 
+                // 重力掉落與生成新特殊道具
                 for (let c = 0; c < COLS; c++) {
                     let emptySlots = 0;
                     for (let r = ROWS - 1; r >= 0; r--) {
@@ -303,11 +423,14 @@ export default function Match3Page({ user }) {
                     }
                 }
                 
-                await sleep(350);
+                // ✨ 優化：加快掉落節奏 (350ms -> 200ms)
+                await sleep(200);
                 renderBoard();
                 
                 matches = findMatches();
-                if (matches.length > 0) await sleep(200);
+                
+                // ✨ 優化：加快連鎖判斷節奏 (200ms -> 80ms)
+                if (matches.length > 0) await sleep(80);
             }
             saveGame();
         }
