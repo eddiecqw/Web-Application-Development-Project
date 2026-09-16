@@ -15,7 +15,6 @@ export default function Match3Page({ user }) {
     const navigate = useNavigate();
     const location = useLocation();
     
-    // ✨ 1. 新增 React 專用的渲染狀態 (取代原本的 innerHTML)
     const [score, setScore] = useState(0);
     const [grid, setGrid] = useState([]);
     const [animStates, setAnimStates] = useState({});
@@ -83,7 +82,6 @@ export default function Match3Page({ user }) {
         };
     }, []);
 
-    // 🎮 遊戲核心引擎 (完全解耦 DOM 操作，專注運算)
     useEffect(() => {
         if (!roomId) return;
 
@@ -111,14 +109,12 @@ export default function Match3Page({ user }) {
             syncState(board, internalScore);
         }
 
-        // ✨ 2. 新的 renderBoard：不再操作 DOM，而是同步給 React State
         function renderBoard() {
-            setGrid(board.map(row => [...row])); // 淺拷貝觸發 React 渲染
+            setGrid(board.map(row => [...row])); 
             setUiSelectedCell(selectedCell);
             setScore(internalScore);
         }
 
-        // 綁定內部操作給 JSX 使用
         engineRef.current.handleCellClick = handleCellClick;
         engineRef.current.handleSwipe = (r, c, tr, tc) => {
             if (isAnimating) return;
@@ -137,7 +133,6 @@ export default function Match3Page({ user }) {
                     return;
                 }
             }
-            
             for (let r = 0; r < ROWS; r++) {
                 board[r] = [];
                 for (let c = 0; c < COLS; c++) {
@@ -169,7 +164,6 @@ export default function Match3Page({ user }) {
                 isAnimating = true; engineRef.current.isAnimating = true;
                 selectedCell = null;
                 
-                // ✨ 終極修復 1：加入 try-catch-finally 絕對防禦，確保遊戲永不卡死
                 try {
                     [board[r1][c1], board[r][c]] = [board[r][c], board[r1][c1]];
                     renderBoard(); 
@@ -183,9 +177,8 @@ export default function Match3Page({ user }) {
                         renderBoard(); saveGame();
                     }
                 } catch (error) {
-                    console.error("消消樂引擎發生意外錯誤，已啟動自動恢復:", error);
+                    console.error("消消樂引擎恢復:", error);
                 } finally {
-                    // 無論發生什麼事，一定會強制解除畫面鎖定！
                     isAnimating = false; engineRef.current.isAnimating = false;
                 }
             } else {
@@ -196,7 +189,6 @@ export default function Match3Page({ user }) {
         function findMatches() {
             let matchedSet = new Set();
             const canMatch = (v) => v && FRUITS.includes(v);
-
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS - 2; c++) {
                     let f1 = board[r][c], f2 = board[r][c+1], f3 = board[r][c+2];
@@ -220,14 +212,12 @@ export default function Match3Page({ user }) {
 
         async function processMatches() {
             let matches = findMatches();
-            let safetyCounter = 0; // ✨ 終極修復 2：安全防護鎖
+            let safetyCounter = 0; 
             
             while (matches.length > 0 && safetyCounter < 20) {
                 safetyCounter++;
                 let toDestroy = new Set();
                 let toMelt = new Set();
-                
-                // ✨ 終極修復 3：讓彩虹冰沙記住是誰引爆了它 (修復邏輯空轉)
                 let queue = [];
                 matches.forEach(m => {
                     let v = board[m.r][m.c];
@@ -237,13 +227,11 @@ export default function Match3Page({ user }) {
                 });
                 
                 let processed = new Set();
-
                 const triggerDestroy = (r, c, inheritedColor) => {
                     if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
                     let key = `${r},${c}`;
                     let v = board[r][c];
                     if (!v) return;
-
                     if (v.startsWith('🧊')) {
                         toMelt.add(key); 
                     } else {
@@ -267,7 +255,6 @@ export default function Match3Page({ user }) {
                     if (!v) continue;
 
                     let tColor = curr.triggerColor || (FRUITS.includes(v) ? v : null);
-
                     const neighbors = [ {r: r-1, c}, {r: r+1, c}, {r, c: c-1}, {r, c: c+1} ];
                     neighbors.forEach(n => {
                         if (n.r >= 0 && n.r < ROWS && n.c >= 0 && n.c < COLS) {
@@ -284,12 +271,10 @@ export default function Match3Page({ user }) {
                         for(let dr=-1; dr<=1; dr++) {
                             for(let dc=-1; dc<=1; dc++) triggerDestroy(r+dr, c+dc, tColor);
                         }
-                    }
-                    else if (v === '🌊') {
+                    } else if (v === '🌊') {
                         for(let i=0; i<ROWS; i++) triggerDestroy(i, c, tColor);
                         for(let i=0; i<COLS; i++) triggerDestroy(r, i, tColor);
-                    }
-                    else if (v === '🌈') {
+                    } else if (v === '🌈') {
                         let targetColor = tColor || FRUITS[Math.floor(Math.random() * FRUITS.length)];
                         for(let rr=0; rr<ROWS; rr++) {
                             for(let cc=0; cc<COLS; cc++) {
@@ -344,64 +329,73 @@ export default function Match3Page({ user }) {
         }
 
         function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-
         initBoard();
         
     }, [roomId]); 
 
     if (!roomId) {
         return (
-            <div style={{ minHeight: '100vh', background: `${bgImage} center/cover no-repeat fixed`, transition: 'background 1.5s ease-in-out', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
+            <div style={{ minHeight: '100vh', background: `${bgImage} center/cover no-repeat`, transition: 'background 1.5s ease-in-out', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
                 <Match3Lobby onCreateRoom={createRoom} onJoinRoom={joinRoom} onBack={() => navigate('/')} username={user.email} />
             </div>
         );
     }
 
     return (
-        <div style={{ background: `${bgImage} center/cover no-repeat fixed`, transition: 'background 1.5s ease-in-out', fontFamily: "'Nunito', 'Noto Color Emoji', sans-serif", display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', margin: 0, padding: '20px 10px', color: '#334155', position: 'relative' }}>
+        <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', touchAction: 'none',
+            background: `${bgImage} center/cover no-repeat`, 
+            transition: 'background 1.5s ease-in-out', fontFamily: "'Nunito', 'Noto Color Emoji', sans-serif",
+            display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#334155'
+        }}>
             <style>{`
                 * { box-sizing: border-box; }
                 .back-btn, .bgm-btn {
                     position: absolute; top: 15px; 
-                    background: rgba(255,255,255,0.25); backdrop-filter: blur(10px);
+                    background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
                     border: 2px solid rgba(255,255,255,0.6); border-radius: 12px;
                     padding: 8px 15px; color: #fff; font-weight: bold; cursor: pointer;
                     font-size: 0.95rem; text-shadow: 0 2px 4px rgba(0,0,0,0.4);
-                    box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: background 0.2s;
-                    z-index: 100;
+                    box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: background 0.2s; z-index: 100;
                 }
                 .back-btn { left: 15px; }
                 .bgm-btn { right: 15px; padding: 8px 12px; font-size: 1rem; }
-                .back-btn:hover, .bgm-btn:hover { background: rgba(255,255,255,0.4); }
-                .title-wrapper { margin-top: 40px; display: flex; flex-direction: column; align-items: center; }
+                
+                .title-wrapper { margin-top: 55px; display: flex; flex-direction: column; align-items: center; }
                 .title-glass {
                     margin: 10px 0 10px 0; font-size: 2.2rem; color: #fff; text-shadow: 0 4px 10px rgba(0,0,0,0.3);
                     background: rgba(255, 255, 255, 0.2); padding: 10px 30px; border-radius: 30px;
-                    backdrop-filter: blur(10px); border: 2px solid rgba(255,255,255,0.5);
+                    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 2px solid rgba(255,255,255,0.5);
                     animation: float 3s ease-in-out infinite; display: flex; flex-direction: column; align-items: center;
                 }
-                .endless-badge { font-size: 0.9rem; background: #ea580c; color: white; padding: 2px 10px; border-radius: 12px; margin-top: 5px; text-shadow: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+                .endless-badge { font-size: 0.9rem; background: #ea580c; color: white; padding: 2px 10px; border-radius: 12px; margin-top: 5px; text-shadow: none; }
                 @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-8px); } 100% { transform: translateY(0px); } }
+                
                 .score-board {
                     font-size: 1.2rem; background: rgba(255, 255, 255, 0.85); padding: 8px 30px; border-radius: 20px; margin-bottom: 25px;
-                    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.8);
-                    display: flex; align-items: center; gap: 10px; font-weight: 900;
+                    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); 
+                    border: 1px solid rgba(255, 255, 255, 0.8); display: flex; align-items: center; gap: 10px; font-weight: 900;
                 }
                 #scoreValue { color: #ea580c; font-size: 1.8rem; text-shadow: 1px 1px 0px #fff; }
+                
                 #game-board {
                     display: grid; grid-template-columns: repeat(8, 48px); grid-template-rows: repeat(8, 48px); gap: 6px; padding: 12px;
-                    background: rgba(255, 255, 255, 0.35); backdrop-filter: blur(15px); border-radius: 20px;
-                    border: 2px solid rgba(255, 255, 255, 0.6); box-shadow: 0 15px 35px rgba(0,0,0,0.2), inset 0 0 20px rgba(255,255,255,0.5); touch-action: none; 
+                    background: rgba(255, 255, 255, 0.35); 
+                    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transform: translateZ(0); 
+                    border-radius: 20px; border: 2px solid rgba(255, 255, 255, 0.6); box-shadow: 0 15px 35px rgba(0,0,0,0.2), inset 0 0 20px rgba(255,255,255,0.5); 
                 }
                 .cell {
                     width: 48px; height: 48px; background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.6) 100%);
                     border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 32px; cursor: pointer; user-select: none;
-                    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 6px rgba(0,0,0,0.1), inset 0 -2px 5px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.8);
+                    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+                    will-change: transform; 
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1), inset 0 -2px 5px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.8);
                 }
                 .cell:active { transform: scale(0.9); }
                 .cell.selected { background: #fff; transform: scale(1.15); box-shadow: 0 0 20px #fcd34d, inset 0 0 10px #f59e0b; border: 2px solid #f59e0b; z-index: 10; }
-                .cell.matched { animation: popOut 0.3s forwards; }
+                .cell.matched { animation: popOut 0.2s forwards; }
                 @keyframes popOut { 0% { transform: scale(1); opacity: 1; filter: brightness(1); } 50% { transform: scale(1.4); opacity: 0.8; filter: brightness(1.5); } 100% { transform: scale(0); opacity: 0; } }
+                
                 @media (max-width: 480px) {
                     .back-btn { top: 10px; left: 10px; padding: 6px 12px; font-size: 0.8rem; border-radius: 8px; }
                     .bgm-btn { top: 10px; right: 10px; padding: 6px 10px; font-size: 0.8rem; border-radius: 8px; }
@@ -415,9 +409,9 @@ export default function Match3Page({ user }) {
                 }
                 .frozen { background: linear-gradient(135deg, rgba(165, 243, 252, 0.9) 0%, rgba(125, 211, 252, 0.8) 100%); border: 2px solid #38bdf8 !important; box-shadow: inset 0 0 10px rgba(255,255,255,0.8); }
                 .frozen::after { content: '❄️'; position: absolute; top: -5px; right: -5px; font-size: 1.2rem; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3)); }
-                .melted { animation: meltIce 0.3s forwards; }
+                .melted { animation: meltIce 0.2s forwards; }
                 @keyframes meltIce { 100% { border-color: transparent; filter: brightness(1.5); } }
-                .special-bomb { animation: pulseBomb 1.5s infinite; border: 2px solid #f43f5e !important; box-shadow: 0 0 15px rgba(244, 63, 94, 0.5); position: relative; }
+                .special-bomb { animation: pulseBomb 1.5s infinite; border: 2px solid #f43f5e !important; box-shadow: 0 0 15px rgba(244, 63, 94, 0.5); }
                 @keyframes pulseBomb { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
             `}</style>
 
@@ -425,7 +419,7 @@ export default function Match3Page({ user }) {
             <button onClick={toggleBgm} className="bgm-btn">{isBgmPlaying ? '🔊 音樂' : '🔇 靜音'}</button>
             
             {roomData && roomData.players.length > 1 && (
-                <div style={{ position: 'absolute', top: '70px', right: '15px', background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(10px)', padding: '12px 15px', borderRadius: '16px', border: '2px solid rgba(255,255,255,0.6)', boxShadow: '0 4px 15px rgba(0,0,0,0.15)', fontSize: '0.85rem', zIndex: 50, minWidth: '150px' }}>
+                <div style={{ position: 'absolute', top: '70px', right: '15px', background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', padding: '12px 15px', borderRadius: '16px', border: '2px solid rgba(255,255,255,0.6)', boxShadow: '0 4px 15px rgba(0,0,0,0.15)', fontSize: '0.85rem', zIndex: 50, minWidth: '150px' }}>
                     <strong style={{ color: '#0f766e', display: 'block', marginBottom: '8px', borderBottom: '1px solid #cbd5e1', paddingBottom: '4px' }}>👥 房間戰況</strong>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {[...roomData.players].sort((a,b) => b.score - a.score).map((p, i) => (
@@ -439,7 +433,7 @@ export default function Match3Page({ user }) {
             )}
 
             <div className="title-wrapper">
-                <div style={{ background: 'rgba(255,255,255,0.85)', padding: '5px 16px', borderRadius: '20px', color: '#0f766e', fontWeight: '900', fontSize: '0.9rem', marginBottom: '10px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', border: '1px solid rgba(255,255,255,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.85)', padding: '5px 16px', borderRadius: '20px', color: '#0f766e', fontWeight: '900', fontSize: '0.9rem', marginBottom: '10px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', border: '1px solid rgba(255,255,255,0.6)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     🏠 房間 ID : <span style={{ color: '#ea580c', letterSpacing: '1px' }}>{roomId}</span>
                 </div>
                 <div className="title-glass">
@@ -453,8 +447,7 @@ export default function Match3Page({ user }) {
                 <span id="scoreValue">{score}</span>
             </div>
 
-            {/* ✨ 4. JSX 完全接管渲染：拒絕 innerHTML，效能起飛！ */}
-            <div id="game-board" style={{ touchAction: 'none' }}>
+            <div id="game-board">
                 {grid.map((row, r) => row.map((val, c) => {
                     const key = `${r},${c}`;
                     const isSelected = uiSelectedCell && uiSelectedCell.r === r && uiSelectedCell.c === c;
