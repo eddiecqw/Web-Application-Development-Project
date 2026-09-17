@@ -10,6 +10,17 @@ const ADMIN_USERS = [
   // 在這裡隨時增減你的內測帳號...
 ];
 
+// 特權動畫：會員專屬關鍵字特效字典
+// 參數說明：emoji(掉落的圖案), count(掉落數量), duration(動畫持續毫秒數)
+const SPECIAL_EFFECTS = {
+  '生日快樂': { emoji: '🎂', count: 20, duration: 4000 },
+  '新年快樂': { emoji: '🧨', count: 30, duration: 4000 },
+  '恭喜': { emoji: '🎉', count: 25, duration: 3500 },
+  '發財': {emoji: '💵', count: 30, duration: 4000 },
+  '消消樂': { emoji: '🍉', count: 15, duration: 3500 },
+  '乾杯': { emoji: '🍻', count: 15, duration: 3000 }
+};
+
 const formatMessageDate = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString);
@@ -53,6 +64,32 @@ export function Home({ username ,onLogout}) {
   const isGuestUser = /^guest_/i.test(username);
   
   const [showGuestModal, setShowGuestPopup] = useState(false);
+
+  // 特權動畫：管理畫面上正在掉落的表情符號
+  const [fallingEmojis, setFallingEmojis] = useState([]);
+
+  // 觸發特效的函數
+  const triggerEffect = (effectData) => {
+    // 隨機生成一批帶有不同大小、位置與延遲的表情符號
+    const newEmojis = Array.from({ length: effectData.count }).map((_, i) => ({
+      id: Date.now() + i + Math.random(),
+      emoji: effectData.emoji,
+      left: Math.random() * 100, // 螢幕 X 軸隨機位置 (0% ~ 100%)
+      animationDuration: 2 + Math.random() * 2, // 下落速度 2~4 秒
+      delay: Math.random() * 1.5, // 隨機延遲 0~1.5 秒出現
+      size: 1.5 + Math.random() * 1.5 // 大小 1.5rem ~ 3.rem
+    }));
+
+    setFallingEmojis(prev => [...prev, ...newEmojis]);
+
+    // 動畫播完後自動清理記憶體
+    setTimeout(() => {
+      setFallingEmojis(prev => prev.filter(e => !newEmojis.map(n => n.id).includes(e.id)));
+    }, effectData.duration + 2000); 
+  };
+  //  記錄遊客是否已經看過第一次發言的提醒
+  const [hasPromptedGuest, setHasPromptedGuest] = useState(false);
+
   // 控制遊戲中心彈窗的狀態
   const [showGameCenter, setShowGameCenter] = useState(false);
 
@@ -131,6 +168,12 @@ export function Home({ username ,onLogout}) {
     if (!lastJsonMessage) return;
 
     if (lastJsonMessage.type === 'INITIAL_HISTORY') {
+      // 如果是遊客，清空歷史紀錄，只允許即時聊天
+      if (isGuestUser) {
+        setMessages([]);
+        return;
+      }
+
       const historyMsgs = lastJsonMessage.data;
       if (historyMsgs && historyMsgs.length > 0) {
         setMessages(historyMsgs);
@@ -165,14 +208,40 @@ export function Home({ username ,onLogout}) {
         }
 
         setMessages((prev) => {
-          const hasMyMessage = validMessages.some(m => m.sender === username);
+          // 過濾掉已經存在的訊息，徹底消滅 "same key" 報錯
+          const newUniqueMsgs = validMessages.filter(newMsg => !prev.some(p => p.id === newMsg.id));
+          
+          if (newUniqueMsgs.length === 0) return prev;
+
+          // 把動畫觸發邏輯移到系統判斷之外，並且只掃描「真正的新訊息」
+          // 使用 setTimeout 避免在 setState 過程中產生副作用
+          setTimeout(() => {
+            newUniqueMsgs.forEach(msg => {
+              if (msg.type === 'text') {
+                const isMsgGuest = /^guest_/i.test(msg.sender) || msg.isGuest;
+                if (!isMsgGuest) {
+                  for (const [keyword, effectData] of Object.entries(SPECIAL_EFFECTS)) {
+                    if (msg.content.includes(keyword)) {
+                      triggerEffect(effectData);
+                      break; 
+                    }
+                  }
+                }
+              }
+            });
+          }, 0);
+
+          // 處理滾動與未讀計數
+          const hasMyMessage = newUniqueMsgs.some(m => m.sender === username);
           if (isAtBottomRef.current || hasMyMessage) {
             forceScrollRef.current = true;
           } else {
-            const visibleMsgs = validMessages.filter(m => (activeTabRef.current === 'world' && m.type !== 'system') || (activeTabRef.current === 'system' && m.type === 'system'));
+            const visibleMsgs = newUniqueMsgs.filter(m => (activeTabRef.current === 'world' && m.type !== 'system') || (activeTabRef.current === 'system' && m.type === 'system'));
             if (visibleMsgs.length > 0) setUnreadCount(c => c + visibleMsgs.length);
           }
-          return [...prev, ...validMessages];
+          
+          // 只將不重複的新訊息加入畫面中
+          return [...prev, ...newUniqueMsgs];
         });
       }
     }
@@ -194,6 +263,13 @@ export function Home({ username ,onLogout}) {
 
   const sendMessage = () => {
     if (!message.trim()) return;
+
+    // 遊客第一次發言時，跳出彈窗提醒 (但不 return 阻擋他，讓他依然能發出訊息)
+    if (isGuestUser && !hasPromptedGuest) {
+      setShowGuestPopup(true);
+      setHasPromptedGuest(true);
+    }
+
     sendJsonMessage({
       type: 'CHAT_MESSAGE',
       data: {
@@ -213,6 +289,13 @@ export function Home({ username ,onLogout}) {
       alert('File is too large! Please upload a file smaller than 5MB.');
       event.target.value = ''; return;
     }
+
+    // ✨ 修改：遊客第一次傳圖片時，同樣跳出提醒
+    if (isGuestUser && !hasPromptedGuest) {
+      setShowGuestPopup(true);
+      setHasPromptedGuest(true);
+    }
+    
     const reader = new FileReader();
     reader.onload = () => {
       sendJsonMessage({
@@ -289,9 +372,30 @@ export function Home({ username ,onLogout}) {
   return (
     <div className="chat-container">
       <div className="background-blur" />
-      
+        {/* ✨ 特權動畫：滿螢幕掉落容器 (穿透點擊，不影響使用者操作) */}
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 9999, overflow: 'hidden' }}>
+          {fallingEmojis.map(item => (
+            <div key={item.id} style={{
+              position: 'absolute',
+              top: '-10%',
+              left: `${item.left}%`,
+              fontSize: `${item.size}rem`,
+              animation: `fallAndSway ${item.animationDuration}s linear ${item.delay}s forwards`,
+              willChange: 'transform' // 啟動 GPU 硬體加速
+            }}>
+              {item.emoji}
+            </div>
+          ))}
+        </div>
       <style>
         {`
+          /* ✨ 新增：滿螢幕掉落特效動畫 */
+          @keyframes fallAndSway {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+            80% { opacity: 1; }
+            100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+          }
+          
           @keyframes toast-fade {
             0% { opacity: 0; transform: translate(-50%, -20px); }
             10% { opacity: 1; transform: translate(-50%, 0); }
