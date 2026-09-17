@@ -62,7 +62,7 @@ const SPECIAL_EFFECTS = {
       emoji: '🐉',
       count: 40, 
       duration: 4500, 
-      allowedUsers: ['mhj2058608753@gmail.com'] 
+      allowedUsers: ['eddiecqw@gmail.com'] 
     }
   ]
 };
