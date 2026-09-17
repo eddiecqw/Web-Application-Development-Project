@@ -30,6 +30,20 @@ const SPECIAL_EFFECTS = {
     count: 30,
     duration: 4000,
     allowedUsers: ['mhj2058608753@gmail.com'] // 只有這個帳號可以使用
+  },
+  '大小姐駕到': { 
+    type: 'banner', 
+    text: '✨ 恭迎 大小姐駕到 ✨', 
+    subText: '通通閃開！',
+    duration: 4000, // 橫幅飛越的時間
+    allowedUsers: ['mhj2058608753@gmail.com'] // 只有這位專屬玩家能觸發
+  },
+  '皇上駕到': { 
+    type: 'banner', 
+    text: '👑 皇上駕到，眾卿平身 👑', 
+    subText: '萬歲萬歲萬萬歲',
+    duration: 4000, 
+    allowedUsers: ['eddiecqw@gmail.com'] // 設定你的專屬信箱
   }
 };
 
@@ -80,24 +94,31 @@ export function Home({ username ,onLogout}) {
   // 特權動畫：管理畫面上正在掉落的表情符號
   const [fallingEmojis, setFallingEmojis] = useState([]);
 
+  const [activeBanner, setActiveBanner] = useState(null);
   // 觸發特效的函數
   const triggerEffect = (effectData) => {
-    // 隨機生成一批帶有不同大小、位置與延遲的表情符號
-    const newEmojis = Array.from({ length: effectData.count }).map((_, i) => ({
-      id: Date.now() + i + Math.random(),
-      emoji: effectData.emoji,
-      left: Math.random() * 100, // 螢幕 X 軸隨機位置 (0% ~ 100%)
-      animationDuration: 2 + Math.random() * 2, // 下落速度 2~4 秒
-      delay: Math.random() * 1.5, // 隨機延遲 0~1.5 秒出現
-      size: 1.5 + Math.random() * 1.5 // 大小 1.5rem ~ 3.rem
-    }));
+    if (effectData.type === 'fall') {
+      // 處理原本的掉落動畫
+      const newEmojis = Array.from({ length: effectData.count }).map((_, i) => ({
+        id: Date.now() + i + Math.random(),
+        emoji: effectData.emoji,
+        left: Math.random() * 100,
+        animationDuration: 2 + Math.random() * 2,
+        delay: Math.random() * 1.5,
+        size: 1.5 + Math.random() * 1.5
+      }));
+      setFallingEmojis(prev => [...prev, ...newEmojis]);
+      setTimeout(() => {
+        setFallingEmojis(prev => prev.filter(e => !newEmojis.map(n => n.id).includes(e.id)));
+      }, effectData.duration + 2000); 
 
-    setFallingEmojis(prev => [...prev, ...newEmojis]);
-
-    // 動畫播完後自動清理記憶體
-    setTimeout(() => {
-      setFallingEmojis(prev => prev.filter(e => !newEmojis.map(n => n.id).includes(e.id)));
-    }, effectData.duration + 2000); 
+    } else if (effectData.type === 'banner') {
+      // 處理橫幅進場動畫
+      setActiveBanner(effectData);
+      setTimeout(() => {
+        setActiveBanner(null);
+      }, effectData.duration);
+    }
   };
   //  記錄遊客是否已經看過第一次發言的提醒
   const [hasPromptedGuest, setHasPromptedGuest] = useState(false);
@@ -402,9 +423,45 @@ export function Home({ username ,onLogout}) {
             </div>
           ))}
         </div>
+
+        {/* ✨ 全新：霸氣橫幅專屬容器 */}
+        {activeBanner && (
+          <div style={{
+            position: 'fixed', top: '35%', left: 0, width: '100vw', height: '140px',
+            // 尊貴的紫金漸層背景
+            background: 'linear-gradient(90deg, transparent, rgba(219, 39, 119, 0.85), rgba(147, 51, 234, 0.85), transparent)',
+            display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+            zIndex: 10000, pointerEvents: 'none', 
+            animation: `bannerSwipe ${activeBanner.duration}ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards`
+          }}>
+            <h1 style={{ 
+              color: '#fff', fontSize: '2.5rem', margin: 0, 
+              animation: 'textGlow 1.5s infinite', fontStyle: 'italic', letterSpacing: '2px'
+            }}>
+              {activeBanner.text}
+            </h1>
+            {activeBanner.subText && (
+              <p style={{ color: '#fcd34d', fontSize: '1.2rem', margin: '5px 0 0 0', fontWeight: '900', letterSpacing: '5px' }}>
+                {activeBanner.subText}
+              </p>
+            )}
+          </div>
+        )}
       <style>
         {`
-          /* ✨ 新增：滿螢幕掉落特效動畫 */
+          /* 霸氣橫幅飛越動畫 */
+          @keyframes bannerSwipe {
+            0% { transform: translateX(100vw) skewX(-15deg); opacity: 0; }
+            15% { transform: translateX(0) skewX(-15deg); opacity: 1; }
+            85% { transform: translateX(0) skewX(-15deg); opacity: 1; }
+            100% { transform: translateX(-100vw) skewX(-15deg); opacity: 0; }
+          }
+          /* 橫幅文字閃耀特效 */
+          @keyframes textGlow {
+            0%, 100% { text-shadow: 0 0 10px #fcd34d, 0 0 20px #fcd34d; }
+            50% { text-shadow: 0 0 20px #fff, 0 0 30px #fcd34d, 0 0 40px #f59e0b; }
+          }
+          /* 滿螢幕掉落特效動畫 */
           @keyframes fallAndSway {
             0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
             80% { opacity: 1; }
