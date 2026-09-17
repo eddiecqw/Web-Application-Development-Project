@@ -16,9 +16,21 @@ const SPECIAL_EFFECTS = {
   '生日快樂': { emoji: '🎂', count: 20, duration: 4000 },
   '新年快樂': { emoji: '🧨', count: 30, duration: 4000 },
   '恭喜': { emoji: '🎉', count: 25, duration: 3500 },
-  '發財': {emoji: '💵', count: 30, duration: 4000 },
+  //'發財': {emoji: '💵', count: 30, duration: 4000 },
   '消消樂': { emoji: '🍉', count: 15, duration: 3500 },
-  '乾杯': { emoji: '🍻', count: 15, duration: 3000 }
+  '乾杯': { emoji: '🍻', count: 15, duration: 3000 },
+  '天降神龍': { 
+    emoji: '🐉', 
+    count: 8, 
+    duration: 5000, 
+    allowedUsers: ['eddiecqw@gmail.com', '1155192043@link.cuhk.edu.hk'] // 只有這兩個帳號打出「天降神龍」才會有動畫
+  },
+  '專屬鈔能力': {
+    emoji: '💵',
+    count: 30,
+    duration: 4000,
+    allowedUsers: ['mhj2058608753@gmail.com'] // 只有這個帳號可以使用
+  }
 };
 
 const formatMessageDate = (dateString) => {
@@ -222,6 +234,9 @@ export function Home({ username ,onLogout}) {
                 if (!isMsgGuest) {
                   for (const [keyword, effectData] of Object.entries(SPECIAL_EFFECTS)) {
                     if (msg.content.includes(keyword)) {
+                      if (effectData.allowedUsers && !effectData.allowedUsers.includes(msg.sender)) {
+                        continue; // 如果這招有專屬限制，但發送者不在名單內，就跳過不觸發
+                      }
                       triggerEffect(effectData);
                       break; 
                     }
