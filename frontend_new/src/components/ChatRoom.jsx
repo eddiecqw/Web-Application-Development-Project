@@ -13,38 +13,58 @@ const ADMIN_USERS = [
 // 特權動畫：會員專屬關鍵字特效字典
 // 參數說明：emoji(掉落的圖案), count(掉落數量), duration(動畫持續毫秒數)
 const SPECIAL_EFFECTS = {
-  '生日快樂': { emoji: '🎂', count: 20, duration: 4000 },
-  '新年快樂': { emoji: '🧨', count: 30, duration: 4000 },
-  '恭喜': { emoji: '🎉', count: 25, duration: 3500 },
-  //'發財': {emoji: '💵', count: 30, duration: 4000 },
-  '消消樂': { emoji: '🍉', count: 15, duration: 3500 },
-  '乾杯': { emoji: '🍻', count: 15, duration: 3000 },
+  '生日快樂': { type: 'fall', emoji: '🎂', count: 20, duration: 4000 },
+  '新年快樂': { type: 'fall', emoji: '🧨', count: 30, duration: 4000 },
+  '恭喜': { type: 'fall', emoji: '🎉', count: 25, duration: 3500 },
+  //'發財': {type: 'fall', emoji: '💵', count: 30, duration: 4000 },
+  '消消樂': { type: 'fall', emoji: '🍉', count: 15, duration: 3500 },
+  '乾杯': { type: 'fall', emoji: '🍻', count: 15, duration: 3000 },
   '天降神龍': { 
+    type: 'fall',
     emoji: '🐉', 
     count: 8, 
     duration: 5000, 
     allowedUsers: ['eddiecqw@gmail.com', '1155192043@link.cuhk.edu.hk'] // 只有這兩個帳號打出「天降神龍」才會有動畫
   },
   '專屬鈔能力': {
+    type: 'fall',
     emoji: '💵',
     count: 30,
     duration: 4000,
     allowedUsers: ['mhj2058608753@gmail.com'] // 只有這個帳號可以使用
   },
-  '大小姐駕到': { 
-    type: 'banner', 
-    text: '✨ 恭迎 大小姐駕到 ✨', 
-    subText: '通通閃開！',
-    duration: 4000, // 橫幅飛越的時間
-    allowedUsers: ['mhj2058608753@gmail.com'] // 只有這位專屬玩家能觸發
-  },
-  '皇上駕到': { 
-    type: 'banner', 
-    text: '👑 皇上駕到，眾卿平身 👑', 
-    subText: '萬歲萬歲萬萬歲',
-    duration: 4000, 
-    allowedUsers: ['eddiecqw@gmail.com'] // 設定你的專屬信箱
-  }
+  '大小姐駕到': [
+    { 
+      type: 'banner', 
+      text: '✨ 恭迎 大小姐駕到 ✨', 
+      subText: '通通閃開！',
+      duration: 4000, 
+      allowedUsers: ['mhj2058608753@gmail.com'] 
+    },
+    { 
+      type: 'fall', 
+      emoji: '🌸',
+      count: 40, 
+      duration: 4500, 
+      allowedUsers: ['mhj2058608753@gmail.com'] 
+    }
+  ],
+  '皇上駕到': [
+    { 
+      type: 'banner', 
+      text: '👑 皇上駕到，眾卿平身 👑', 
+      subText: '萬歲萬歲萬萬歲',
+      duration: 4000, 
+      allowedUsers: ['eddiecqw@gmail.com'] // 設定你的專屬信箱
+    },
+    {
+      type: 'fall', 
+      emoji: '🐉',
+      count: 40, 
+      duration: 4500, 
+      allowedUsers: ['mhj2058608753@gmail.com'] 
+    }
+  ]
 };
 
 const formatMessageDate = (dateString) => {
@@ -253,13 +273,18 @@ export function Home({ username ,onLogout}) {
               if (msg.type === 'text') {
                 const isMsgGuest = /^guest_/i.test(msg.sender) || msg.isGuest;
                 if (!isMsgGuest) {
-                  for (const [keyword, effectData] of Object.entries(SPECIAL_EFFECTS)) {
+                  for (const [keyword, effectPayload] of Object.entries(SPECIAL_EFFECTS)) {
                     if (msg.content.includes(keyword)) {
-                      if (effectData.allowedUsers && !effectData.allowedUsers.includes(msg.sender)) {
-                        continue; // 如果這招有專屬限制，但發送者不在名單內，就跳過不觸發
-                      }
-                      triggerEffect(effectData);
-                      break; 
+                      // 判斷這個關鍵字是「單一特效」還是「特效陣列」，統一轉成陣列處理
+                      const effectsToRun = Array.isArray(effectPayload) ? effectPayload : [effectPayload];
+                      effectsToRun.forEach(effectData => {
+                        // 檢查是否有專屬玩家名單限制
+                        if (effectData.allowedUsers && !effectData.allowedUsers.includes(msg.sender)) {
+                          return; // 使用 return 跳過這一個特效
+                        }
+                        triggerEffect(effectData);
+                      });
+                      break;
                     }
                   }
                 }
