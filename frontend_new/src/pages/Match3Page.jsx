@@ -25,6 +25,53 @@ export default function Match3Page({ user }) {
     const wsUrl = `${baseWsUrl}?username=${encodeURIComponent(user.email)}`;
     const { createRoom, joinRoom, leaveRoom, syncState, gameState: { roomId, roomData } } = useMatch3Socket(wsUrl);
 
+    // ✨ 音訊狀態獨立分離
+    const [isBgmPlaying, setIsBgmPlaying] = useState(false);
+    const [isSfxEnabled, setIsSfxEnabled] = useState(true);
+    const isSfxEnabledRef = useRef(true); // 給閉包內的遊戲引擎讀取用
+
+    // ✨ 專業級 Web Audio API 引擎 (負責 SFX)
+    const audioCtxRef = useRef(null);
+    const sfxBufferRef = useRef(null);
+    const bgmRef = useRef(new Audio('/audio/match3_bgm.mp3'));
+
+    useEffect(() => {
+        // 初始化 AudioContext
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtxRef.current = new AudioContext();
+
+        // 預先載入氣泡音效並解碼存入記憶體 (Buffer)
+        fetch('/audio/bubble.mp3')
+            .then(res => res.arrayBuffer())
+            .then(arrayBuffer => audioCtxRef.current.decodeAudioData(arrayBuffer))
+            .then(audioBuffer => { sfxBufferRef.current = audioBuffer; })
+            .catch(e => console.error("音效載入失敗:", e));
+
+        const audio = bgmRef.current;
+        audio.loop = true; audio.volume = 0.6;
+
+        return () => { 
+            audio.pause(); audio.currentTime = 0; 
+            if (audioCtxRef.current?.state !== 'closed') audioCtxRef.current?.close();
+        };
+    }, []);
+
+    const toggleBgm = () => {
+        if (isBgmPlaying) bgmRef.current.pause();
+        else bgmRef.current.play().catch(() => {});
+        setIsBgmPlaying(!isBgmPlaying);
+    };
+
+    const toggleSfx = () => {
+        const nextState = !isSfxEnabled;
+        setIsSfxEnabled(nextState);
+        isSfxEnabledRef.current = nextState;
+        // 若 iOS 暫停了音訊，玩家點開關時順便喚醒它
+        if (nextState && audioCtxRef.current?.state === 'suspended') {
+            audioCtxRef.current.resume();
+        }
+    };
+
     const autoJoinInterval = useRef(null);
     useEffect(() => {
         if (location.state?.autoJoinRoomId && !roomId) {
@@ -45,23 +92,6 @@ export default function Match3Page({ user }) {
     useEffect(() => {
         return () => { if (autoJoinInterval.current) clearInterval(autoJoinInterval.current); };
     }, []);
-
-    const popSoundRef = useRef(new Audio('/audio/bubble.mp3')); 
-    useEffect(() => { popSoundRef.current.volume = 0.7; }, []);
-
-    const [isBgmPlaying, setIsBgmPlaying] = useState(false);
-    const bgmRef = useRef(new Audio('/audio/match3_bgm.mp3'));
-    useEffect(() => {
-        const audio = bgmRef.current;
-        audio.loop = true; audio.volume = 0.6;
-        return () => { audio.pause(); audio.currentTime = 0; };
-    }, []);
-
-    const toggleBgm = () => {
-        if (isBgmPlaying) bgmRef.current.pause();
-        else bgmRef.current.play().catch(() => {});
-        setIsBgmPlaying(!isBgmPlaying);
-    };
 
     const [bgImage, setBgImage] = useState(getBeachBackgroundByTime());
     useEffect(() => {
@@ -115,8 +145,16 @@ export default function Match3Page({ user }) {
             setScore(internalScore);
         }
 
+        // ✨ 音訊解鎖機制：觸控螢幕瞬間喚醒 Web Audio
+        const unlockAudio = () => {
+            if (audioCtxRef.current?.state === 'suspended') {
+                audioCtxRef.current.resume();
+            }
+        };
+
         engineRef.current.handleCellClick = handleCellClick;
         engineRef.current.handleSwipe = (r, c, tr, tc) => {
+            unlockAudio();
             if (isAnimating) return;
             selectedCell = { r, c };
             renderBoard();
@@ -149,6 +187,7 @@ export default function Match3Page({ user }) {
         }
 
         async function handleCellClick(r, c) {
+            unlockAudio();
             if (isAnimating) return;
             if (!selectedCell) { selectedCell = { r, c }; renderBoard(); return; }
             if (selectedCell.r === r && selectedCell.c === c) { selectedCell = null; renderBoard(); return; }
@@ -290,7 +329,18 @@ export default function Match3Page({ user }) {
 
                 internalScore += toDestroy.size * 10 + toMelt.size * 5;
                 setScore(internalScore);
-                try { popSoundRef.current.currentTime = 0; popSoundRef.current.play().catch(()=>{}); } catch(e){}
+
+                // ✨ 利用 Web Audio API 播放消除音效 (允許百重疊加、不中斷背景音樂)
+                if (isSfxEnabledRef.current && audioCtxRef.current && sfxBufferRef.current) {
+                    if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume();
+                    const source = audioCtxRef.current.createBufferSource();
+                    source.buffer = sfxBufferRef.current;
+                    const gainNode = audioCtxRef.current.createGain();
+                    gainNode.gain.value = 0.7; // 控制音量
+                    source.connect(gainNode);
+                    gainNode.connect(audioCtxRef.current.destination);
+                    source.start(0);
+                }
                 
                 let newAnimStates = {};
                 toDestroy.forEach(k => newAnimStates[k] = 'matched');
@@ -350,22 +400,22 @@ export default function Match3Page({ user }) {
         }}>
             <style>{`
                 * { box-sizing: border-box; }
-                .back-btn, .bgm-btn {
-                    position: absolute; top: 15px; 
-                    background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+                .action-btn {
+                    background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); WebkitBackdropFilter: blur(10px);
                     border: 2px solid rgba(255,255,255,0.6); border-radius: 12px;
                     padding: 8px 15px; color: #fff; font-weight: bold; cursor: pointer;
                     font-size: 0.95rem; text-shadow: 0 2px 4px rgba(0,0,0,0.4);
                     box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: background 0.2s; z-index: 100;
                 }
-                .back-btn { left: 15px; }
-                .bgm-btn { right: 15px; padding: 8px 12px; font-size: 1rem; }
+                .action-btn:hover { background: rgba(255,255,255,0.4); }
+                .back-btn { position: absolute; top: 15px; left: 15px; }
+                .controls-container { position: absolute; top: 15px; right: 15px; display: flex; gap: 8px; z-index: 100; }
                 
                 .title-wrapper { margin-top: 55px; display: flex; flex-direction: column; align-items: center; }
                 .title-glass {
                     margin: 10px 0 10px 0; font-size: 2.2rem; color: #fff; text-shadow: 0 4px 10px rgba(0,0,0,0.3);
                     background: rgba(255, 255, 255, 0.2); padding: 10px 30px; border-radius: 30px;
-                    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 2px solid rgba(255,255,255,0.5);
+                    backdrop-filter: blur(10px); WebkitBackdropFilter: blur(10px); border: 2px solid rgba(255,255,255,0.5);
                     animation: float 3s ease-in-out infinite; display: flex; flex-direction: column; align-items: center;
                 }
                 .endless-badge { font-size: 0.9rem; background: #ea580c; color: white; padding: 2px 10px; border-radius: 12px; margin-top: 5px; text-shadow: none; }
@@ -373,7 +423,7 @@ export default function Match3Page({ user }) {
                 
                 .score-board {
                     font-size: 1.2rem; background: rgba(255, 255, 255, 0.85); padding: 8px 30px; border-radius: 20px; margin-bottom: 25px;
-                    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); 
+                    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15); backdrop-filter: blur(8px); WebkitBackdropFilter: blur(8px); 
                     border: 1px solid rgba(255, 255, 255, 0.8); display: flex; align-items: center; gap: 10px; font-weight: 900;
                 }
                 #scoreValue { color: #ea580c; font-size: 1.8rem; text-shadow: 1px 1px 0px #fff; }
@@ -381,7 +431,7 @@ export default function Match3Page({ user }) {
                 #game-board {
                     display: grid; grid-template-columns: repeat(8, 48px); grid-template-rows: repeat(8, 48px); gap: 6px; padding: 12px;
                     background: rgba(255, 255, 255, 0.35); 
-                    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transform: translateZ(0); 
+                    backdrop-filter: blur(8px); WebkitBackdropFilter: blur(8px); transform: translateZ(0); 
                     border-radius: 20px; border: 2px solid rgba(255, 255, 255, 0.6); box-shadow: 0 15px 35px rgba(0,0,0,0.2), inset 0 0 20px rgba(255,255,255,0.5); 
                 }
                 .cell {
@@ -397,8 +447,9 @@ export default function Match3Page({ user }) {
                 @keyframes popOut { 0% { transform: scale(1); opacity: 1; filter: brightness(1); } 50% { transform: scale(1.4); opacity: 0.8; filter: brightness(1.5); } 100% { transform: scale(0); opacity: 0; } }
                 
                 @media (max-width: 480px) {
-                    .back-btn { top: 10px; left: 10px; padding: 6px 12px; font-size: 0.8rem; border-radius: 8px; }
-                    .bgm-btn { top: 10px; right: 10px; padding: 6px 10px; font-size: 0.8rem; border-radius: 8px; }
+                    .action-btn { padding: 6px 10px; font-size: 0.8rem; border-radius: 8px; }
+                    .back-btn { top: 10px; left: 10px; }
+                    .controls-container { top: 10px; right: 10px; }
                     .title-wrapper { margin-top: 55px; } 
                     .title-glass { margin: 5px 0; font-size: 1.6rem; padding: 8px 20px; }
                     .endless-badge { font-size: 0.8rem; padding: 2px 8px; }
@@ -415,8 +466,17 @@ export default function Match3Page({ user }) {
                 @keyframes pulseBomb { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
             `}</style>
 
-            <button onClick={() => { leaveRoom(); navigate('/'); }} className="back-btn">← 離開房間</button>
-            <button onClick={toggleBgm} className="bgm-btn">{isBgmPlaying ? '🔊 音樂' : '🔇 靜音'}</button>
+            <button onClick={() => { leaveRoom(); navigate('/'); }} className="action-btn back-btn">← 離開房間</button>
+            
+            {/* ✨ 獨立的控制台：分開 BGM 與 SFX */}
+            <div className="controls-container">
+                <button onClick={toggleSfx} className="action-btn">
+                    {isSfxEnabled ? '✨ 音效: 開' : '🔇 音效: 關'}
+                </button>
+                <button onClick={toggleBgm} className="action-btn">
+                    {isBgmPlaying ? '🔊 音樂: 開' : '🔈 音樂: 關'}
+                </button>
+            </div>
             
             {roomData && roomData.players.length > 1 && (
                 <div style={{ position: 'absolute', top: '70px', right: '15px', background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', padding: '12px 15px', borderRadius: '16px', border: '2px solid rgba(255,255,255,0.6)', boxShadow: '0 4px 15px rgba(0,0,0,0.15)', fontSize: '0.85rem', zIndex: 50, minWidth: '150px' }}>
