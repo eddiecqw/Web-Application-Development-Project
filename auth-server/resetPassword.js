@@ -17,19 +17,19 @@ const client = new MongoClient(uri, {
 
 async function resetUserPassword(email, newPlainPassword) {
   try {
-    console.log("⏳ 正在連線至 MongoDB...");
+    console.log("⏳ Connecting to MongoDB...");
     await client.connect();
     const db = client.db('WebDemo');
-    console.log("✅ 成功連線至資料庫！");
+    console.log("✅ Successfully connect to database！");
 
     const user = await db.collection('User').findOne({ email: email });
     
     if (!user) {
-      console.log(`❌ 錯誤：資料庫中找不到信箱為 ${email} 的用戶。`);
+      console.log(`❌ Error：Couldn't find the user ${email} in the database.`);
       process.exit(1);
     }
 
-    console.log(`⏳ 正在為 ${email} 生成新密碼...`);
+    console.log(`⏳ Generating new password for user ${email} ...`);
     const hashedPassword = await bcrypt.hash(newPlainPassword, 10);
 
     await db.collection('User').updateOne(
@@ -37,11 +37,11 @@ async function resetUserPassword(email, newPlainPassword) {
       { $set: { password: hashedPassword } }
     );
 
-    console.log(`🎉 救援成功！`);
-    console.log(`👉 已將用戶 ${email} 的密碼強制重置為: ${newPlainPassword}`);
+    console.log(`🎉 Rescue successfully.`);
+    console.log(`👉 The password for user ${email} has been forcibly reset to: ${newPlainPassword}`);
 
   } catch (error) {
-    console.error("❌ 執行過程中發生錯誤:", error);
+    console.error("❌ An error occurred during execution:", error);
   } finally {
 
     await client.close();
