@@ -22,16 +22,16 @@ const SPECIAL_EFFECTS = {
   '天降神龍': { 
     type: 'fall',
     emoji: '🐉', 
-    count: 8, 
+    count: 20, 
     duration: 5000, 
-    allowedUsers: ['eddiecqw@gmail.com', '1155192043@link.cuhk.edu.hk'] // 只有這兩個帳號打出「天降神龍」才會有動畫
+    allowedUsers: ['eddiecqw@gmail.com', '1155192043@link.cuhk.edu.hk']
   },
   '專屬鈔能力': {
     type: 'fall',
     emoji: '💵',
     count: 30,
     duration: 4000,
-    allowedUsers: ['mhj2058608753@gmail.com'] // 只有這個帳號可以使用
+    allowedUsers: ['mhj2058608753@gmail.com']
   },
   '大小姐駕到': [
     { 
@@ -55,7 +55,7 @@ const SPECIAL_EFFECTS = {
       text: '👑 皇上駕到，眾卿平身 👑', 
       subText: '萬歲萬歲萬萬歲',
       duration: 4000, 
-      allowedUsers: ['eddiecqw@gmail.com'] // 設定你的專屬信箱
+      allowedUsers: ['eddiecqw@gmail.com']
     },
     {
       type: 'fall', 
@@ -63,6 +63,22 @@ const SPECIAL_EFFECTS = {
       count: 40, 
       duration: 4500, 
       allowedUsers: ['eddiecqw@gmail.com'] 
+    }
+  ],
+  '無敵鐵金剛':[
+    {
+      type: 'banner',
+      text: '⚠️無敵鐵金剛霸氣登場⚠️',
+      subText: '👑🦍🦍💨',
+      duration: 4000,
+      allowedUsers: ['karsonli0324@gmail.com']
+    },
+    {
+      type: 'fall', 
+      emoji: '🍌',
+      count: 40, 
+      duration: 4500, 
+      allowedUsers: ['karsonli0324@gmail.com'] 
     }
   ]
 };
