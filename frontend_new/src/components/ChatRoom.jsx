@@ -643,6 +643,31 @@ export function Home({ username ,onLogout}) {
               </div>
             )}
 
+            {/* ✨ 新增：遊客模式的專屬空狀態 (Empty State) */}
+            {isGuestUser && activeTab === 'world' && filteredMessages.length === 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8', gap: '12px', textAlign: 'center', padding: '20px', animation: 'pop-in 0.5s ease-out' }}>
+                <div style={{ fontSize: '4rem', opacity: 0.7, filter: 'grayscale(50%)' }}>👻</div>
+                <h3 style={{ margin: 0, color: '#64748b', fontSize: '1.2rem', letterSpacing: '1px' }}>歡迎來到綜合大廳</h3>
+                <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: '1.6', maxWidth: '85%' }}>
+                  目前為<strong style={{ color: '#475569' }}>遊客模式</strong>，歷史對話已被隱藏。<br />
+                  您可以在此進行即時的發言與互動！
+                </p>
+                <button 
+                  onClick={() => setShowGuestPopup(true)}
+                  style={{ 
+                    marginTop: '10px', padding: '8px 20px', background: '#f1f5f9', color: '#475569', 
+                    border: '1px solid #cbd5e1', borderRadius: '20px', fontWeight: 'bold', 
+                    cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.2s',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                  }}
+                  onMouseOver={(e) => { e.target.style.background = '#e2e8f0'; e.target.style.transform = 'translateY(-1px)'; }}
+                  onMouseOut={(e) => { e.target.style.background = '#f1f5f9'; e.target.style.transform = 'translateY(0)'; }}
+                >
+                  解鎖歷史紀錄與專屬特權 🚀
+                </button>
+              </div>
+            )}
+
             {hasMore && filteredMessages.length >= 20 && activeTab === 'world' && (
               <button 
                 onClick={loadMoreMessages} disabled={isLoadingHistory}
