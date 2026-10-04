@@ -58,6 +58,64 @@ const GAME_WORDS = [
   '太陽', '月亮', '星星', '雲', '閃電', '樹', '花', '彩虹', '火山', '雪人', '鑽石', '鬼魂', '外星人'
 ];
 
+// ✨ 1. 全新分類大題庫 (每個類別皆嚴選 30+ 詞彙)
+const GAME_WORD_BANKS = {
+  anime: [
+    '哆啦A夢', '皮卡丘', '漩渦鳴人', '蒙其D魯夫', '孫悟空', '炭治郎', '禰豆子', '江戶川柯南', '胖虎', '初音未來',
+    '艾連葉卡', '埼玉', '里維兵長', '奇犽', '酷拉皮卡', '喬巴', '索隆', '香吉士', '魯路修', '坂田銀時',
+    '神樂', '灰原哀', '毛利小五郎', '宇智波佐助', '旗木卡卡西', '櫻桃小丸子', '野原新之助', '蠟筆小新', '史萊姆', '哥布林', '美少女戰士', '進擊的巨人'
+  ],
+  idioms: [
+    '畫蛇添足', '守株待兔', '亡羊補牢', '掩耳盜鈴', '拔苗助長', '刻舟求劍', '狐假虎威', '井底之蛙', '盲人摸象', '狐朋狗友',
+    '狼吞虎嚥', '雞飛狗跳', '龍飛鳳舞', '虎頭蛇尾', '牛頭馬面', '狗急跳牆', '畫龍點睛', '濫竽充數', '掩人耳目', '驚弓之鳥',
+    '破釜沉舟', '望梅止渴', '指鹿為馬', '螳臂當車', '鷸蚌相爭', '坐井觀天', '對牛彈琴', '班門弄斧', '畫餅充飢', '打草驚蛇'
+  ],
+  daily: [
+    '牙刷', '吹風機', '衛生紙', '馬桶', '蓮蓬頭', '冰箱', '微波爐', '電視', '遙控器', '沙發',
+    '床', '枕頭', '棉被', '衣櫃', '衣架', '襪子', '鞋子', '鑰匙', '錢包', '手機',
+    '充電線', '行動電源', '筆記本', '原子筆', '橡皮擦', '水壺', '剪刀', '膠水', '垃圾桶', '掃把', '拖把', '菜刀'
+  ],
+  bizarre: [
+    '鼻屎', '腳臭', '狐臭', '禿頭', '假牙', '蟑螂', '鼻涕', '馬桶刷', '嘔吐物', '內褲',
+    '貞子', '外星人', '殭屍', '木乃伊', '骷髏', '大便', '尿布', '屁股', '腋毛', '鼻毛',
+    '青春痘', '雙下巴', '啤酒肚', '假髮', '飛碟', '變種人', '毒藥', '詛咒', '魔法陣', '吸血鬼', '狼人', '喪屍'
+  ],
+  movies: [
+    '哈利波特', '鋼鐵人', '蜘蛛人', '蝙蝠俠', '超人', '美國隊長', '綠巨人浩克', '黑寡婦', '神力女超人', '冰雪奇緣',
+    '獅子王', '玩具總動員', '復仇者聯盟', '星際大戰', '變形金剛', '哥吉拉', '金剛', '侏羅紀公園', '鐵達尼號', '阿凡達',
+    '駭客任務', '魔戒', '神鬼奇航', '玩命關頭', '奇異博士', '死侍', '猛毒', '小丑', '黑豹', '蟻人', '魷魚遊戲'
+  ],
+  games: [
+    '超級瑪利歐', '薩爾達傳說', '寶可夢', '英雄聯盟', '傳說對決', '絕地求生', '跑跑卡丁車', '楓之谷', '麥塊', '動物森友會',
+    '原神', '崩壞星穹鐵道', '怪物彈珠', '遊戲王', 'AmongUs', '糖豆人', '俄羅斯方塊', '貪吃蛇', '踩地雷', '鬥陣特攻',
+    '特戰英豪', '世紀帝國', '星海爭霸', '魔獸世界', '暗黑破壞神', '最終幻想', '惡靈古堡', '戰神', '刺客教條', '瑪利歐賽車'
+  ],
+  people: [
+    '警察', '消防員', '醫生', '護士', '老師', '學生', '廚師', '司機', '飛行員', '空服員',
+    '歌手', '演員', '畫家', '作家', '工程師', '律師', '法官', '總統', '國王', '皇后',
+    '公主', '王子', '小偷', '強盜', '忍者', '武士', '乞丐', '魔術師', '小丑', '太空人', '運動員', '裁判'
+  ],
+  politics: [
+    '孫中山', '蔣中正', '毛澤東', '林肯', '華盛頓', '拿破崙', '希特勒', '邱吉爾', '伊莉莎白女王', '甘地',
+    '曼德拉', '歐巴馬', '川普', '拜登', '普丁', '金正恩', '蔡英文', '馬英九', '陳水扁', '賴清德',
+    '韓國瑜', '柯文哲', '蘇貞昌', '郭台銘', '習近平', '安倍晉三', '麥克阿瑟', '克林頓', '希拉蕊', '柴契爾夫人'
+  ]
+};
+
+// ✨ 2. 輔助函數：根據所選類別隨機抽題
+function getRandomWordFromCategories(categories) {
+  let pool = [];
+  if (!categories || categories.length === 0 || categories.includes('all')) {
+    Object.values(GAME_WORD_BANKS).forEach(arr => pool.push(...arr));
+  } else {
+    categories.forEach(cat => {
+      if (GAME_WORD_BANKS[cat]) pool.push(...GAME_WORD_BANKS[cat]);
+    });
+  }
+  if (pool.length === 0) pool = GAME_WORD_BANKS.daily; // 防呆機制
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 app.post('/api/auth/register', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ success: false, message: 'Missing email or password' });
@@ -341,21 +399,25 @@ wsServer.on('connection', async (connection, request) => {
       case 'GAME_CREATE_ROOM': {
         const roomId = uuidv4().slice(0, 6);
         const playerId = uuidv4();
-        const word = GAME_WORDS[Math.floor(Math.random() * GAME_WORDS.length)];
+        
+        // ✨ 解析使用者選擇的題庫，並生成第一題
+        const selectedCategories = data.categories || ['all'];
+        const word = getRandomWordFromCategories(selectedCategories);
+        
         const player = { id: playerId, name: username, score: 0, isPainter: true };
         const hasTimeLimit = data.hasTimeLimit || false;
         const timeLimit = data.timeLimit || 60;
         
-        gameRooms[roomId] = { players: [player], painterId: playerId, word, hasTimeLimit, timeLimit, scoreHistory: { [username]: 0 } };
+        // 將 categories 存入房間狀態中
+        gameRooms[roomId] = { players: [player], painterId: playerId, word, hasTimeLimit, timeLimit, categories: selectedCategories, scoreHistory: { [username]: 0 } };
         connection._roomId = roomId;
         connection._playerId = playerId;
       
         const systemMessage = { sender: 'System', content: `🎨 你畫我猜房間 [${roomId}] 已創建，快來大展身手吧！`, timestamp: new Date(), type: 'system', channel: 'system', gameType: 'draw-guess', gameRoomId: roomId };
-        
-        // 🛑 核心修改：系統廣播閱後即焚，不再寫入 DB
         Object.values(connections).forEach((conn) => { conn.send(JSON.stringify([systemMessage])); });
       
-        connection.send(JSON.stringify({ type: 'GAME_ROOM_CREATED', data: { roomId, players: gameRooms[roomId].players, isPainter: true, playerId, word, hasTimeLimit, timeLimit } }));
+        // 回傳新增的 categories
+        connection.send(JSON.stringify({ type: 'GAME_ROOM_CREATED', data: { roomId, players: gameRooms[roomId].players, isPainter: true, playerId, word, hasTimeLimit, timeLimit, categories: selectedCategories } }));
         break;
       }
 
@@ -372,7 +434,8 @@ wsServer.on('connection', async (connection, request) => {
         connection._roomId = roomId;
         connection._playerId = playerId;
 
-        connection.send(JSON.stringify({ type: 'GAME_JOINED', data: { roomId, players: room.players, isPainter: false, playerId, hasTimeLimit: room.hasTimeLimit, timeLimit: room.timeLimit } }));
+        // 回傳新增的 categories
+        connection.send(JSON.stringify({ type: 'GAME_JOINED', data: { roomId, players: room.players, isPainter: false, playerId, hasTimeLimit: room.hasTimeLimit, timeLimit: room.timeLimit, categories: room.categories } }));
         broadcastToRoom(roomId, { type: 'GAME_PLAYER_UPDATE', data: { players: room.players } });
         break;
       }
@@ -403,9 +466,12 @@ wsServer.on('connection', async (connection, request) => {
           
           room.painterId = nextPainter.id;
           room.players.forEach(p => p.isPainter = (p.id === room.painterId));
-          room.word = GAME_WORDS[Math.floor(Math.random() * GAME_WORDS.length)];
+          
+          // ✨ 核心修復：從該房間專屬的題庫中抽取下一題
+          room.word = getRandomWordFromCategories(room.categories);
       
-          broadcastToRoom(roomId, { type: 'GAME_NEW_ROUND', data: { players: room.players, word: room.word, painterId: room.painterId, hasTimeLimit: room.hasTimeLimit, timeLimit: room.timeLimit } });
+          // 回傳新增的 categories
+          broadcastToRoom(roomId, { type: 'GAME_NEW_ROUND', data: { players: room.players, word: room.word, painterId: room.painterId, hasTimeLimit: room.hasTimeLimit, timeLimit: room.timeLimit, categories: room.categories } });
         }
       
         broadcastToRoom(roomId, { type: 'GAME_GUESS_RESULT', data: { playerName: username, guess: data.guess, isCorrect, scoreUpdate, correctWord: isCorrect ? room.word : null } });
