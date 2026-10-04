@@ -26,6 +26,12 @@ export default function DrawGuessPage({ user }) {
   const [isMuted, setIsMuted] = useState(false);
   const correctSound = useRef(new Audio('/success.mp3')); 
   const bgmSound = useRef(new Audio('/The_Carousel_Clock.mp3'));         
+  const [showCategoryInfo, setShowCategoryInfo] = useState(false);
+
+  const CATEGORY_MAP = {
+    all: '🌟 全部隨機', anime: '🎌 動漫', idioms: '🐉 四字成語', daily: '🏠 日常',
+    bizarre: '👽 獵奇', movies: '🎬 影視流行', games: '🎮 遊戲電競', people: '🧑‍💼 職業人物', politics: '👔 歷史政治'
+  };
 
   useEffect(() => {
     bgmSound.current.loop = true;
@@ -37,7 +43,7 @@ export default function DrawGuessPage({ user }) {
   
   const {
     createRoom, joinRoom, sendDrawData, submitGuess, leaveRoom, 
-    gameState: { roomId, players, isPainter, playerId, currentWord },
+    gameState: { roomId, players, isPainter, playerId, currentWord, categories },// ✨ 加入 categories
   } = useGameSocket(wsUrl, {
     DRAW_DATA_RECEIVED: (data) => {
       if (data.path && data.path.action === 'UNDO') canvasRef.current?.undo(false); 
@@ -160,27 +166,51 @@ export default function DrawGuessPage({ user }) {
 
       {/* ✨ 1. 極致壓縮的頂部狀態列 */}
       <header style={{ 
-        width: '100%', maxWidth: '1100px', display: 'flex', justifyContent: 'space-between', 
-        alignItems: 'center', padding: '6px 10px', /* 大幅縮小 Padding */
-        backgroundColor: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(10px)', 
+        width: '100%', maxWidth: '1100px', display: 'flex', flexDirection: 'column', 
+        padding: '6px 10px', backgroundColor: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(10px)', 
         borderRadius: '12px', marginBottom: '10px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', boxSizing: 'border-box'
       }}>
-        <button onClick={handleLeaveGame} style={{ padding: '6px 12px', background: '#dc2626', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem', boxShadow: '0 2px 6px rgba(220,38,38,0.3)' }}>
-          ← 離開
-        </button>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ fontWeight: 'bold', color: '#c2410c', fontSize: '1rem', textShadow: '1px 1px 2px rgba(255,255,255,0.5)' }}>房間: {roomId}</div>
-          {isTimerActive && (
-            <div style={{ fontSize: '0.8rem', color: timeLeft <= 10 ? '#ef4444' : '#b45309', fontWeight: 'bold', background: 'rgba(255,255,255,0.8)', padding: '2px 8px', borderRadius: '8px', animation: timeLeft <= 10 ? 'timer-pulse 1s infinite' : 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              ⏱️ {timeLeft}s
-            </div>
-          )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <button onClick={handleLeaveGame} style={{ padding: '6px 12px', background: '#dc2626', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem', boxShadow: '0 2px 6px rgba(220,38,38,0.3)' }}>
+            ← 離開
+          </button>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* ✨ 隱藏的題庫展開按鈕 */}
+            <button 
+              onClick={() => setShowCategoryInfo(!showCategoryInfo)}
+              style={{ background: '#fef3c7', border: '1px solid #fcd34d', color: '#b45309', padding: '4px 10px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              📚 題庫 {showCategoryInfo ? '▲' : '▼'}
+            </button>
+
+            <div style={{ fontWeight: 'bold', color: '#c2410c', fontSize: '1rem', textShadow: '1px 1px 2px rgba(255,255,255,0.5)' }}>房間: {roomId}</div>
+            
+            {isTimerActive && (
+              <div style={{ fontSize: '0.8rem', color: timeLeft <= 10 ? '#ef4444' : '#b45309', fontWeight: 'bold', background: 'rgba(255,255,255,0.8)', padding: '2px 8px', borderRadius: '8px', animation: timeLeft <= 10 ? 'timer-pulse 1s infinite' : 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                ⏱️ {timeLeft}s
+              </div>
+            )}
+          </div>
+          
+          <button onClick={() => setIsMuted(!isMuted)} style={{ padding: '6px 12px', background: isMuted ? '#94a3b8' : '#10b981', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
+            {isMuted ? '🔇' : '🔊'}
+          </button>
         </div>
-        
-        <button onClick={() => setIsMuted(!isMuted)} style={{ padding: '6px 12px', background: isMuted ? '#94a3b8' : '#10b981', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
-          {isMuted ? '🔇' : '🔊'}
-        </button>
+
+        {/* ✨ 展開後的題庫資訊區 */}
+        {showCategoryInfo && (
+          <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(255,255,255,0.6)', borderRadius: '8px', borderTop: '1px dashed #fcd34d', fontSize: '0.85rem', color: '#78350f', animation: 'timer-pulse 0.3s ease-out' }}>
+            <strong>目前涵蓋題材：</strong>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+              {categories?.map(cat => (
+                <span key={cat} style={{ background: '#ffedd5', padding: '2px 8px', borderRadius: '12px', border: '1px solid #fdba74' }}>
+                  {CATEGORY_MAP[cat] || cat}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* 核心佈局 */}

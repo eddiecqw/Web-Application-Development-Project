@@ -11,6 +11,7 @@ export default function useGameSocket(url, eventHandlers = {}) {
   const [playerId, setPlayerId] = useState(null);
   const [isPainter, setIsPainter] = useState(false);
   const [players, setPlayers] = useState([]);
+  const [categories, setCategories] = useState(['all']);
 
   useEffect(() => {
     handlersRef.current = eventHandlers;
@@ -50,8 +51,7 @@ export default function useGameSocket(url, eventHandlers = {}) {
             setIsPainter(data.isPainter);
             setPlayers(data.players);
             if (data.word) setCurrentWord(data.word);
-            
-            // ✨ 當成功進入房間時，把房間號碼記在瀏覽器中
+            if (data.categories) setCategories(data.categories); // ✨ 接收題庫類型
             sessionStorage.setItem('drawGuessRoomId', data.roomId);
             break;
 
@@ -85,9 +85,8 @@ export default function useGameSocket(url, eventHandlers = {}) {
             setPlayers(data.players);
             setIsPainter(data.painterId === playerIdRef.current); 
             if (data.word) setCurrentWord(data.word); 
-            setTimeout(() => {
-              handlersRef.current['GAME_NEW_ROUND']?.(data); 
-            }, 50);
+            if (data.categories) setCategories(data.categories); // ✨ 更新題庫類型
+            setTimeout(() => { handlersRef.current['GAME_NEW_ROUND']?.(data); }, 50);
             break;
 
           default:
@@ -129,18 +128,9 @@ export default function useGameSocket(url, eventHandlers = {}) {
   }, []);
 
   return {
-    send,
-    createRoom,
-    joinRoom,
-    sendDrawData,
-    submitGuess,
-    leaveRoom, // 導出這個方法
+    send, createRoom, joinRoom, sendDrawData, submitGuess, leaveRoom,
     gameState: {
-      roomId,
-      playerId,
-      isPainter,
-      players,
-      currentWord,
+      roomId, playerId, isPainter, players, currentWord, categories, // ✨ 導出 categories
     },
   };
 }

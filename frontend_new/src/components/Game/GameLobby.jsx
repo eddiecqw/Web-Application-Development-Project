@@ -1,10 +1,39 @@
 import React, { useState, useEffect } from 'react';
 
+const CATEGORY_OPTIONS = [
+  { id: 'all', label: '🌟 全部隨機' },
+  { id: 'anime', label: '🎌 動漫' },
+  { id: 'idioms', label: '🐉 四字成語' },
+  { id: 'daily', label: '🏠 日常' },
+  { id: 'bizarre', label: '👽 獵奇' },
+  { id: 'movies', label: '🎬 影視流行' },
+  { id: 'games', label: '🎮 遊戲電競' },
+  { id: 'people', label: '🧑‍💼 職業人物' },
+  { id: 'politics', label: '👔 歷史政治' }
+];
+
 export default function GameLobby({ onCreateRoom, onJoinRoom }) {
   const [roomIdInput, setRoomIdInput] = useState('');
   const [hasTimeLimit, setHasTimeLimit] = useState(false);
   const [timeLimit, setTimeLimit] = useState(60);
   const [availableRooms, setAvailableRooms] = useState([]);
+  
+  // ✨ 題庫選擇狀態 (預設選中全部)
+  const [selectedCategories, setSelectedCategories] = useState(['all']);
+
+  const handleCategoryChange = (catId) => {
+    if (catId === 'all') {
+      setSelectedCategories(['all']);
+    } else {
+      let newCats = selectedCategories.filter(id => id !== 'all');
+      if (newCats.includes(catId)) {
+        newCats = newCats.filter(id => id !== catId);
+      } else {
+        newCats.push(catId);
+      }
+      setSelectedCategories(newCats.length === 0 ? ['all'] : newCats);
+    }
+  };
 
   const fetchRooms = async () => {
     try {
@@ -36,7 +65,33 @@ export default function GameLobby({ onCreateRoom, onJoinRoom }) {
       {/* ⚙️ 創建房間設定 */}
       <div style={{ background: '#fffbeb', padding: '20px', borderRadius: '16px', textAlign: 'left', border: '1px solid #fde68a', marginBottom: '20px' }}>
         <h4 style={{ margin: '0 0 15px 0', color: '#b45309', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem' }}>☀️ 創建專屬房間</h4>
-        
+        {/* ✨ 新增：題庫多選區塊 */}
+        <div style={{ marginBottom: '15px' }}>
+          <div style={{ color: '#78350f', fontWeight: 'bold', marginBottom: '8px', fontSize: '0.95rem' }}>📚 選擇題庫 (可多選)</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {CATEGORY_OPTIONS.map(cat => (
+              <label 
+                key={cat.id} 
+                style={{ 
+                  padding: '6px 10px', borderRadius: '20px', fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s', userSelect: 'none',
+                  border: selectedCategories.includes(cat.id) ? '2px solid #ea580c' : '1px solid #cbd5e1',
+                  background: selectedCategories.includes(cat.id) ? '#ffedd5' : '#f8fafc',
+                  color: selectedCategories.includes(cat.id) ? '#9a3412' : '#64748b',
+                  fontWeight: selectedCategories.includes(cat.id) ? 'bold' : 'normal'
+                }}
+              >
+                <input 
+                  type="checkbox" 
+                  checked={selectedCategories.includes(cat.id)} 
+                  onChange={() => handleCategoryChange(cat.id)} 
+                  style={{ display: 'none' }} 
+                />
+                {cat.label}
+              </label>
+            ))}
+          </div>
+        </div>
+
         <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', color: '#78350f', fontWeight: 'bold' }}>
           <input 
             type="checkbox" 
@@ -64,7 +119,7 @@ export default function GameLobby({ onCreateRoom, onJoinRoom }) {
           style={{ width: '100%', marginTop: '20px', padding: '12px', borderRadius: '12px', background: 'linear-gradient(to right, #f59e0b, #ea580c)', color: 'white', fontWeight: 'bold', fontSize: '1.1rem', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(234, 88, 12, 0.3)', transition: 'transform 0.1s' }}
           onMouseDown={e => e.currentTarget.style.transform='scale(0.97)'}
           onMouseUp={e => e.currentTarget.style.transform='scale(1)'}
-          onClick={() => onCreateRoom({ hasTimeLimit, timeLimit })}
+          onClick={() => onCreateRoom({ hasTimeLimit, timeLimit, categories: selectedCategories })} // ✨ 傳遞選擇的題庫
         >
           🚀 創建房間
         </button>
