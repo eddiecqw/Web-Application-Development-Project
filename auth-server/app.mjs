@@ -443,7 +443,11 @@ wsServer.on('connection', async (connection, request) => {
       case 'GAME_DRAW_DATA': {
         const roomId = connection._roomId;
         if (!roomId) return;
-        broadcastToRoom(roomId, { type: 'GAME_DRAW_DATA', data: { path: data.path } });
+        Object.values(connections).forEach((conn) => {
+          if (conn._roomId === roomId && conn !== connection && conn.readyState === 1) {
+            conn.send(JSON.stringify({ type: 'GAME_DRAW_DATA', data: { path: data.path } }));
+          }
+        });
         break;
       }
 

@@ -125,7 +125,8 @@ const CanvasBoard = forwardRef(({ isPainter, sendDraw, brushColor, brushSize }, 
       });
     },
     clear: (broadcast = true) => {
-      if (!broadcast && isPainterRef.current) return;
+      // ✨ 核心修復：將原本的 if (!broadcast && isPainterRef.current) return; 刪除！
+      // 既然我們在後端修復了回音，這裡就不需要防護了。確保系統換下一局時，畫布會乖乖清空！
       if (fabricCanvas.current) {
         fabricCanvas.current.clear();
         fabricCanvas.current.backgroundColor = '#ffffff';

@@ -294,7 +294,8 @@ export default function DrawGuessPage({ user }) {
                   value={guess}
                   onChange={(e) => setGuess(e.target.value)}
                   placeholder="輸入你的猜測..."
-                  style={{ flex: 1, padding: '8px 12px', fontSize: '0.95rem', border: '2px solid #fcd34d', borderRadius: '8px', outline: 'none', background: '#fff' }}
+                  style={{ flex: 1, padding: '8px 12px', fontSize: '0.95rem', color: '#1e293b', border: '2px solid #fcd34d', borderRadius: '8px', outline: 'none', background: '#fff' }}
+                  // style={{ flex: 1, padding: '8px 12px', fontSize: '0.95rem', border: '2px solid #fcd34d', borderRadius: '8px', outline: 'none', background: '#fff' }}
                 />
                 <button type="submit" style={{ padding: '8px 20px', background: 'linear-gradient(to right, #f59e0b, #ea580c)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)' }}>
                   送出
